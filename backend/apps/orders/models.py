@@ -8,12 +8,6 @@ class Order(models.Model):
         ('frozen', 'Заморожен'),
         ('cancelled', 'Отменён'),
     ]
-    PLATFORM_CHOICES = [
-        ('instagram', 'Instagram'),
-        ('telegram', 'Telegram'),
-        ('kwork', 'Kwork'),
-        ('other', 'Другое'),
-    ]
     SOURCE_CHOICES = [
         ('manual', 'Вручную'),
         ('telegram_bot', 'Telegram Бот'),
@@ -29,9 +23,8 @@ class Order(models.Model):
         related_name='orders', verbose_name='Услуги'
     )
     description = models.TextField(blank=True, verbose_name='ТЗ / Описание')
-    platform = models.CharField(max_length=50, choices=PLATFORM_CHOICES, default='other', verbose_name='Площадка')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='in_progress', verbose_name='Статус')
-    source = models.CharField(max_length=50, choices=SOURCE_CHOICES, default='manual', verbose_name='Источник')
+    source = models.CharField(max_length=50, choices=SOURCE_CHOICES, default='manual', verbose_name='Источник создания')
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Сумма')
     deadline = models.DateField(null=True, blank=True, verbose_name='Дедлайн')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создан')

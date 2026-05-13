@@ -19,27 +19,47 @@ class LeadPublicCreateView(APIView):
 
 
 class LeadViewSet(viewsets.ModelViewSet):
-    queryset = Lead.objects.select_related('service').all()
+    queryset = Lead.objects.select_related('service', 'lead_source', 'contact_type').all()
     serializer_class = LeadSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'service']
-    search_fields = ['name', 'contact', 'email', 'description']
+    filterset_fields = ['status', 'service', 'lead_source']
+    search_fields = ['name', 'contact_value', 'email', 'description']
     ordering_fields = ['created_at', 'status']
     ordering = ['-created_at']
 
     @action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
         lead = self.get_object()
-        from apps.clients.models import Client
+        from apps.clients.models import Client, ContactInfo
         from apps.orders.models import Order
 
+        # Создаём клиента с источником из заявки
         client = Client.objects.create(
             name=lead.name,
-            email=lead.email,
-            notes=f'Контакты: {lead.contact}',
-            platform='other',
+            lead_source=lead.lead_source,
+            notes=f'Создан из заявки #{lead.id}',
         )
+
+        # Переносим контакт из заявки
+        if lead.contact_type and lead.contact_value:
+            ContactInfo.objects.create(
+                client=client,
+                contact_type=lead.contact_type,
+                value=lead.contact_value,
+            )
+        # Email тоже сохраняем если есть
+        if lead.email:
+            from apps.clients.models import ContactType
+            email_type, _ = ContactType.objects.get_or_create(
+                name='Email', defaults={'order': 10}
+            )
+            ContactInfo.objects.create(
+                client=client,
+                contact_type=email_type,
+                value=lead.email,
+            )
+
         order = Order.objects.create(
             title=lead.description[:100] if lead.description else f'Заказ от {lead.name}',
             client=client,

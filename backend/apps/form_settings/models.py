@@ -11,6 +11,7 @@ class FormSettings(models.Model):
     show_deadline = models.BooleanField(default=True, verbose_name='Показывать Дедлайн')
     show_description = models.BooleanField(default=True, verbose_name='Показывать Описание задачи')
     show_service = models.BooleanField(default=True, verbose_name='Показывать выбор услуги')
+    show_lead_source = models.BooleanField(default=True, verbose_name='Показывать источник')
     services = models.ManyToManyField('services.Service', blank=True, verbose_name='Услуги в форме')
 
     class Meta:

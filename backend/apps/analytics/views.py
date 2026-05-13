@@ -8,7 +8,8 @@ from apps.orders.models import Order
 import datetime
 
 
-class IncomeByPlatformView(APIView):
+class IncomeByLeadSourceView(APIView):
+    """Доходы по источникам клиентов"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -20,14 +21,20 @@ class IncomeByPlatformView(APIView):
         elif period == 'year':
             qs = qs.filter(completed_at__year=timezone.now().year)
 
-        data = qs.values('platform').annotate(total=Sum('price'), count=Count('id')).order_by('-total')
-        LABELS = {'instagram':'Instagram','telegram':'Telegram','kwork':'Kwork','other':'Другое'}
-        return Response([{
-            'platform': i['platform'],
-            'label': LABELS.get(i['platform'], i['platform']),
-            'total': float(i['total'] or 0),
-            'count': i['count'],
-        } for i in data])
+        data = (
+            qs.values('client__lead_source__id', 'client__lead_source__name')
+            .annotate(total=Sum('price'), count=Count('id'))
+            .order_by('-total')
+        )
+        result = []
+        for item in data:
+            result.append({
+                'lead_source_id': item['client__lead_source__id'],
+                'label': item['client__lead_source__name'] or 'Без источника',
+                'total': float(item['total'] or 0),
+                'count': item['count'],
+            })
+        return Response(result)
 
 
 class IncomeByMonthView(APIView):
@@ -42,7 +49,7 @@ class IncomeByMonthView(APIView):
             .annotate(total=Sum('price'), count=Count('id'))
             .order_by('month')
         )
-        MONTHS = ['','Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
+        MONTHS = ['', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
         monthly = {i: {'total': 0, 'count': 0} for i in range(1, 13)}
         for item in data:
             m = item['month'].month
@@ -51,7 +58,6 @@ class IncomeByMonthView(APIView):
 
 
 class IncomeByServiceView(APIView):
-    """Доходы по услугам — адаптирован под ManyToMany"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -63,7 +69,6 @@ class IncomeByServiceView(APIView):
             if total > 0:
                 result.append({'service': service.name, 'total': float(total), 'count': count})
 
-        # Заказы без услуг
         no_service_total = Order.objects.filter(status='completed', services__isnull=True).aggregate(t=Sum('price'))['t'] or 0
         if no_service_total > 0:
             result.append({'service': 'Без услуги', 'total': float(no_service_total), 'count': 0})

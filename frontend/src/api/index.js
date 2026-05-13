@@ -50,6 +50,14 @@ export const clients = {
   update: (id, d) => api.patch(`/clients/${id}/`, d),
   delete: id => api.delete(`/clients/${id}/`),
   orders: id => api.get(`/clients/${id}/orders/`),
+  leadSources: () => api.get('/clients/lead-sources/'),
+  createLeadSource: d => api.post('/clients/lead-sources/', d),
+  updateLeadSource: (id, d) => api.patch(`/clients/lead-sources/${id}/`, d),
+  deleteLeadSource: id => api.delete(`/clients/lead-sources/${id}/`),
+  contactTypes: () => api.get('/clients/contact-types/'),
+  createContactType: d => api.post('/clients/contact-types/', d),
+  updateContactType: (id, d) => api.patch(`/clients/contact-types/${id}/`, d),
+  deleteContactType: id => api.delete(`/clients/contact-types/${id}/`),
 }
 export const services = {
   list: p => api.get('/services/', { params: p }),
@@ -60,7 +68,7 @@ export const services = {
   orders: id => api.get(`/services/${id}/orders/`),
 }
 export const analytics = {
-  byPlatform: p => api.get('/analytics/income/by-platform/', { params: p }),
+  byLeadSource: p => api.get('/analytics/income/by-lead-source/', { params: p }),
   byMonth: p => api.get('/analytics/income/by-month/', { params: p }),
   byService: () => api.get('/analytics/income/by-service/'),
   summary: p => api.get('/analytics/income/summary/', { params: p }),

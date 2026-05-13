@@ -8,7 +8,7 @@ from .filters import OrderFilter
 
 
 class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.select_related('client').all()
+    queryset = Order.objects.select_related('client__lead_source').prefetch_related('client__contacts__contact_type').all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = OrderFilter
     search_fields = ['title', 'description', 'client__name']
@@ -40,5 +40,5 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def recent(self, request):
-        orders = Order.objects.select_related('client').order_by('-created_at')[:10]
+        orders = Order.objects.select_related('client').prefetch_related('services').order_by('-created_at')[:10]
         return Response(OrderListSerializer(orders, many=True).data)

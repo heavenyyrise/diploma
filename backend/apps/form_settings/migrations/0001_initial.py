@@ -1,5 +1,6 @@
 from django.db import migrations, models
 
+
 class Migration(migrations.Migration):
     initial = True
     dependencies = [('services', '0001_initial')]
@@ -17,8 +18,9 @@ class Migration(migrations.Migration):
                 ('show_deadline', models.BooleanField(default=True, verbose_name='Показывать Дедлайн')),
                 ('show_description', models.BooleanField(default=True, verbose_name='Показывать Описание задачи')),
                 ('show_service', models.BooleanField(default=True, verbose_name='Показывать выбор услуги')),
+                ('show_lead_source', models.BooleanField(default=True, verbose_name='Показывать источник')),
                 ('services', models.ManyToManyField(blank=True, to='services.service', verbose_name='Услуги в форме')),
             ],
-            options={'verbose_name':'Настройки формы','verbose_name_plural':'Настройки формы'},
+            options={'verbose_name': 'Настройки формы', 'verbose_name_plural': 'Настройки формы'},
         ),
     ]

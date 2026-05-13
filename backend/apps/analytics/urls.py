@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import IncomeByPlatformView, IncomeByMonthView, IncomeByServiceView, IncomeSummaryView, AvailableYearsView
+from .views import IncomeByLeadSourceView, IncomeByMonthView, IncomeByServiceView, IncomeSummaryView, AvailableYearsView
+
 urlpatterns = [
-    path('income/by-platform/', IncomeByPlatformView.as_view()),
+    path('income/by-lead-source/', IncomeByLeadSourceView.as_view()),
     path('income/by-month/', IncomeByMonthView.as_view()),
     path('income/by-service/', IncomeByServiceView.as_view()),
     path('income/summary/', IncomeSummaryView.as_view()),
