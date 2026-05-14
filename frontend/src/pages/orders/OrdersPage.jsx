@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
 import { Card, PageHeader, Badge, Button, Modal, Field, inputStyle, Table, EmptyState, formatMoney, formatDate } from '../../components/ui'
+import { CreateClientModal } from '../clients/ClientsPage'
 
 const STATUSES = [
   { value: '', label: 'Все статусы' },
@@ -100,18 +101,34 @@ export default function OrdersPage() {
         }
       </Card>
 
-      <CreateOrderModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load() }} clients={clientsList} services={servicesList} />
+      <CreateOrderModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={() => { setShowCreate(false); load() }}
+        clients={clientsList}
+        services={servicesList}
+      />
     </div>
   )
 }
 
-export function CreateOrderModal({ open, onClose, onCreated, clients, services, initialData }) {
+export function CreateOrderModal({ open, onClose, onCreated, clients: initialClients, services, initialData }) {
   const [form, setForm] = useState({ title: '', client: '', services: [], description: '', status: 'in_progress', price: '', deadline: '' })
   const [loading, setLoading] = useState(false)
+  const [clients, setClients] = useState(initialClients || [])
+  const [showCreateClient, setShowCreateClient] = useState(false)
+  const [leadSources, setLeadSources] = useState([])
+  const [contactTypes, setContactTypes] = useState([])
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
+  useEffect(() => { setClients(initialClients || []) }, [initialClients])
+
   useEffect(() => {
-    if (open) setForm({ title: '', client: '', services: [], description: '', status: 'in_progress', price: '', deadline: '', ...initialData })
+    if (open) {
+      setForm({ title: '', client: '', services: [], description: '', status: 'in_progress', price: '', deadline: '', ...initialData })
+      clientsApi.leadSources().then(r => setLeadSources(r.data.results || r.data))
+      clientsApi.contactTypes().then(r => setContactTypes(r.data.results || r.data))
+    }
   }, [open])
 
   const toggleService = id => setForm(p => ({ ...p, services: p.services.includes(id) ? p.services.filter(s => s !== id) : [...p.services, id] }))
@@ -129,63 +146,86 @@ export function CreateOrderModal({ open, onClose, onCreated, clients, services, 
     } finally { setLoading(false) }
   }
 
+  const handleClientCreated = async () => {
+    // Перезагружаем список и выбираем только что созданного (первый — сортировка -created_at)
+    const r = await clientsApi.list()
+    const updated = r.data.results || r.data
+    setClients(updated)
+    if (updated.length > 0) set('client', updated[0].id)
+    setShowCreateClient(false)
+  }
+
   return (
-    <Modal open={open} onClose={onClose} title="Новый заказ" width={580}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Field label="Название" required>
-          <input style={inputStyle} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Название проекта" />
-        </Field>
-
-        <Field label="Клиент">
-          <select style={inputStyle} value={form.client} onChange={e => set('client', e.target.value)}>
-            <option value="">Без клиента</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.lead_source_name ? ` (${c.lead_source_name})` : ''}</option>)}
-          </select>
-        </Field>
-
-        {services.length > 0 && (
-          <Field label="Услуги">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: '#fff', minHeight: 42 }}>
-              {services.map(s => {
-                const sel = form.services.includes(s.id)
-                return (
-                  <button key={s.id} type="button" onClick={() => toggleService(s.id)}
-                    style={{ padding: '4px 12px', borderRadius: 20, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: sel ? 500 : 400, background: sel ? 'var(--accent)' : 'var(--bg)', color: sel ? '#fff' : 'var(--text-secondary)', border: sel ? '1px solid var(--accent)' : '1px solid var(--border)' }}>
-                    {s.name}
-                  </button>
-                )
-              })}
-            </div>
+    <>
+      <Modal open={open} onClose={onClose} title="Новый заказ" width={580}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Field label="Название" required>
+            <input style={inputStyle} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Название проекта" />
           </Field>
-        )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Field label="Статус">
-            <select style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
-              <option value="in_progress">В работе</option>
-              <option value="frozen">Заморожен</option>
-              <option value="cancelled">Отменён</option>
-              <option value="completed">Завершён</option>
+          <Field label="Клиент">
+            <select style={inputStyle} value={form.client} onChange={e => set('client', e.target.value)}>
+              <option value="">Без клиента</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.lead_source_name ? ` (${c.lead_source_name})` : ''}</option>)}
             </select>
+            <button type="button" onClick={() => setShowCreateClient(true)}
+              style={{ alignSelf: 'flex-start', marginTop: 6, fontSize: '0.8rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>
+              + Создать нового клиента
+            </button>
           </Field>
-          <Field label="Сумма (₽)">
-            <input style={inputStyle} type="number" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
+
+          {services.length > 0 && (
+            <Field label="Услуги">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: '#fff', minHeight: 42 }}>
+                {services.map(s => {
+                  const sel = form.services.includes(s.id)
+                  return (
+                    <button key={s.id} type="button" onClick={() => toggleService(s.id)}
+                      style={{ padding: '4px 12px', borderRadius: 20, fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: sel ? 500 : 400, background: sel ? 'var(--accent)' : 'var(--bg)', color: sel ? '#fff' : 'var(--text-secondary)', border: sel ? '1px solid var(--accent)' : '1px solid var(--border)' }}>
+                      {s.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Статус">
+              <select style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
+                <option value="in_progress">В работе</option>
+                <option value="frozen">Заморожен</option>
+                <option value="cancelled">Отменён</option>
+                <option value="completed">Завершён</option>
+              </select>
+            </Field>
+            <Field label="Сумма (₽)">
+              <input style={inputStyle} type="number" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
+            </Field>
+          </div>
+
+          <Field label="Дедлайн">
+            <input style={inputStyle} type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
           </Field>
+
+          <Field label="Описание / ТЗ">
+            <textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Техническое задание..." />
+          </Field>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+            <Button variant="ghost" onClick={onClose}>Отмена</Button>
+            <Button onClick={handle} disabled={loading || !form.title}>{loading ? 'Сохраняем...' : 'Создать заказ'}</Button>
+          </div>
         </div>
+      </Modal>
 
-        <Field label="Дедлайн">
-          <input style={inputStyle} type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
-        </Field>
-
-        <Field label="Описание / ТЗ">
-          <textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Техническое задание..." />
-        </Field>
-
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
-          <Button variant="ghost" onClick={onClose}>Отмена</Button>
-          <Button onClick={handle} disabled={loading || !form.title}>{loading ? 'Сохраняем...' : 'Создать заказ'}</Button>
-        </div>
-      </div>
-    </Modal>
+      <CreateClientModal
+        open={showCreateClient}
+        onClose={() => setShowCreateClient(false)}
+        onCreated={handleClientCreated}
+        leadSources={leadSources}
+        contactTypes={contactTypes}
+      />
+    </>
   )
 }
