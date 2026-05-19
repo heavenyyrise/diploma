@@ -14,9 +14,10 @@ const DEFAULT_CFG = {
 export default function PublicLeadForm() {
   const [cfg, setCfg] = useState(null)
   const [form, setForm] = useState({
-    name: '', email: '', service: '', description: '', budget: '', deadline: '',
+    name: '', description: '', budget: '', deadline: '',
     lead_source: '', contact_type: '', contact_value: '',
   })
+  const [selectedServices, setSelectedServices] = useState([])
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -25,7 +26,6 @@ export default function PublicLeadForm() {
     axios.get('/api/form-settings/public/').then(r => setCfg(r.data)).catch(() => setCfg(DEFAULT_CFG))
   }, [])
 
-  // Set default contact_type when cfg loads
   useEffect(() => {
     if (cfg?.contact_types?.length && !form.contact_type) {
       setForm(p => ({ ...p, contact_type: cfg.contact_types[0].id }))
@@ -33,6 +33,12 @@ export default function PublicLeadForm() {
   }, [cfg])
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  const toggleService = id => {
+    setSelectedServices(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    )
+  }
 
   const handle = async e => {
     e.preventDefault()
@@ -43,11 +49,10 @@ export default function PublicLeadForm() {
         name: form.name,
         contact_type: form.contact_type,
         contact_value: form.contact_value,
-        email: form.email || '',
         description: form.description || '',
+        services: selectedServices,
       }
       if (form.lead_source) payload.lead_source = form.lead_source
-      if (form.service) payload.service = form.service
       if (form.budget) payload.budget = form.budget
       if (form.deadline) payload.deadline = form.deadline
       await axios.post('/api/leads/public/', payload)
@@ -74,8 +79,8 @@ export default function PublicLeadForm() {
 
   const chevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`
   const selectStyle = { ...fStyle, appearance: 'none', paddingRight: 28, backgroundImage: chevron, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', cursor: 'pointer' }
-
   const currentContactType = cfg.contact_types?.find(t => t.id === Number(form.contact_type))
+  const hasProjectBlock = cfg.show_service || cfg.show_description || cfg.show_budget || cfg.show_deadline
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
@@ -93,23 +98,24 @@ export default function PublicLeadForm() {
 
           <form onSubmit={handle}>
             <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+
               {/* Контактная информация */}
               <div style={{ padding: '28px 28px 24px' }}>
                 <SLabel>Контактная информация</SLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  
                   <FField label="Ваше имя / название организации" required>
-                    <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Иван Иванов или ООО «Компания»" required style={fStyle} />
+                    <input value={form.name} onChange={e => set('name', e.target.value)}
+                      placeholder="Иван Иванов или ООО «Компания»" required style={fStyle} />
                   </FField>
 
                   <FField label="Контакт для связи" required hint="Выберите тип и введите значение">
                     <div style={{ display: 'flex', gap: 8 }}>
-                      {cfg.contact_types?.length > 0 ? (
+                      {cfg.contact_types?.length > 0 && (
                         <select value={form.contact_type} onChange={e => set('contact_type', Number(e.target.value))}
                           style={{ ...selectStyle, width: 148, flexShrink: 0 }}>
                           {cfg.contact_types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
-                      ) : null}
+                      )}
                       <input value={form.contact_value} onChange={e => set('contact_value', e.target.value)}
                         placeholder={currentContactType ? `Ваш ${currentContactType.name}` : 'Контакт для связи'}
                         required style={{ ...fStyle, flex: 1 }} />
@@ -117,18 +123,18 @@ export default function PublicLeadForm() {
                   </FField>
 
                   {cfg.show_lead_source && cfg.lead_sources?.length > 0 && (
-                        <FField label="Откуда вы о нас узнали?" required>
-                          <select value={form.lead_source} onChange={e => set('lead_source', e.target.value)} required style={selectStyle}>
-                            <option value="">Выберите вариант</option>
-                            {cfg.lead_sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
-                        </FField>
-                      )}
+                    <FField label="Откуда вы о нас узнали?" required>
+                      <select value={form.lead_source} onChange={e => set('lead_source', e.target.value)} required style={selectStyle}>
+                        <option value="">Выберите вариант</option>
+                        {cfg.lead_sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </FField>
+                  )}
                 </div>
               </div>
 
               {/* О проекте */}
-              {(cfg.show_service || cfg.show_lead_source || cfg.show_description || cfg.show_budget || cfg.show_deadline) && (
+              {hasProjectBlock && (
                 <>
                   <div style={{ margin: '0 28px', borderTop: '1px solid var(--border)' }} />
                   <div style={{ padding: '24px 28px 28px' }}>
@@ -136,11 +142,36 @@ export default function PublicLeadForm() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
                       {cfg.show_service && cfg.services?.length > 0 && (
-                        <FField label="Нужная услуга">
-                          <select value={form.service} onChange={e => set('service', e.target.value)} style={selectStyle}>
-                            <option value="">Не знаю / другое</option>
-                            {cfg.services.map(s => <option key={s.id} value={s.id}>{s.name}{s.price ? ` — от ${Number(s.price).toLocaleString('ru-RU')} ₽` : ''}</option>)}
-                          </select>
+                        <FField label="Нужные услуги" hint="Можно выбрать несколько">
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {cfg.services.map(s => {
+                              const sel = selectedServices.includes(s.id)
+                              return (
+                                <button key={s.id} type="button" onClick={() => toggleService(s.id)}
+                                  style={{
+                                    padding: '7px 16px',
+                                    borderRadius: 20,
+                                    fontSize: '0.875rem',
+                                    cursor: 'pointer',
+                                    fontFamily: 'var(--font-body)',
+                                    fontWeight: sel ? 500 : 400,
+                                    background: sel ? 'var(--accent)' : '#fff',
+                                    color: sel ? '#fff' : 'var(--text-secondary)',
+                                    border: sel ? '1px solid var(--accent)' : '1px solid var(--border)',
+                                    transition: 'all 0.15s',
+                                  }}>
+                                  {sel && <span style={{ marginRight: 5 }}>✓</span>}
+                                  {s.name}
+                                  {s.price ? <span style={{ opacity: 0.75, fontSize: '0.8rem', marginLeft: 6 }}>от {Number(s.price).toLocaleString('ru-RU')} ₽</span> : null}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {selectedServices.length > 0 && (
+                            <div style={{ marginTop: 6, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              Выбрано: {selectedServices.length}
+                            </div>
+                          )}
                         </FField>
                       )}
 
@@ -156,7 +187,8 @@ export default function PublicLeadForm() {
                         <div style={{ display: 'grid', gridTemplateColumns: cfg.show_budget && cfg.show_deadline ? '1fr 1fr' : '1fr', gap: 14 }}>
                           {cfg.show_budget && (
                             <FField label="Бюджет (₽)" hint="Приблизительно">
-                              <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)} placeholder="0" min="0" style={fStyle} />
+                              <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)}
+                                placeholder="0" min="0" style={fStyle} />
                             </FField>
                           )}
                           {cfg.show_deadline && (

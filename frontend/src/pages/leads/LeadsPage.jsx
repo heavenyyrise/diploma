@@ -30,6 +30,7 @@ export default function LeadsPage() {
     const r = await leadsApi.accept(lead.id)
     load()
     setSelected(null)
+    const serviceIds = lead.services_detail?.map(s => s.id) || []
     setOrderData({
       orderId: r.data.order_id,
       clientId: r.data.client_id,
@@ -37,7 +38,7 @@ export default function LeadsPage() {
       description: lead.description || '',
       price: lead.budget || '',
       deadline: lead.deadline || '',
-      services: lead.service ? [lead.service] : [],
+      services: serviceIds,
     })
     setShowOrderModal(true)
   }
@@ -75,14 +76,15 @@ export default function LeadsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {data.map(lead => (
-          <Card key={lead.id} onClick={() => setSelected(lead)} style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}>
+          <Card key={lead.id} onClick={() => setSelected(lead)}
+            style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[lead.status], flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 500, fontSize: '0.9rem', marginBottom: 3 }}>{lead.name}</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {lead.contact_display}
                 {lead.lead_source_detail && <> · <span style={{ color: 'var(--accent-dark)' }}>{lead.lead_source_detail.name}</span></>}
-                {lead.service_detail && <> · {lead.service_detail.name}</>}
+                {lead.services_detail?.length > 0 && <> · {lead.services_detail.map(s => s.name).join(', ')}</>}
                 {lead.budget && <> · {Number(lead.budget).toLocaleString('ru-RU')} ₽</>}
               </div>
             </div>
@@ -179,6 +181,7 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
             </select>
           </div>
         </div>
+
         {services.length > 0 && (
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Услуги</label>
@@ -195,6 +198,7 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
             </div>
           </div>
         )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Сумма (₽)</label>
@@ -232,7 +236,6 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onUpdated }) {
             lead.contact_type_detail && ['Контакт', `${lead.contact_type_detail.name}: ${lead.contact_value}`],
             lead.email && ['Email', lead.email],
             lead.lead_source_detail && ['Источник', lead.lead_source_detail.name],
-            lead.service_detail && ['Услуга', lead.service_detail.name],
             lead.budget && ['Бюджет', `${Number(lead.budget).toLocaleString('ru-RU')} ₽`],
             lead.deadline && ['Дедлайн', formatDate(lead.deadline)],
             ['Дата заявки', formatDate(lead.created_at)],
@@ -245,6 +248,20 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onUpdated }) {
           ))}
         </div>
 
+        {/* Услуги */}
+        {lead.services_detail?.length > 0 && (
+          <div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Услуги</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {lead.services_detail.map(s => (
+                <span key={s.id} style={{ fontSize: '0.82rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '3px 12px', borderRadius: 20, fontWeight: 500 }}>
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {lead.description && (
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Описание задачи</div>
@@ -254,7 +271,8 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onUpdated }) {
 
         <div>
           <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Мои заметки</div>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Заметки по заявке..." style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Заметки по заявке..."
+            style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
           <button onClick={saveNotes} disabled={saving}
             style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--accent)', cursor: 'pointer', background: 'none', border: 'none', fontWeight: 500 }}>
             {saving ? 'Сохраняем...' : 'Сохранить заметку'}

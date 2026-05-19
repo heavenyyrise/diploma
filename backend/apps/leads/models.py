@@ -5,21 +5,19 @@ class Lead(models.Model):
     STATUS_CHOICES = [('new', 'Новая'), ('accepted', 'Принята'), ('rejected', 'Отклонена')]
 
     name = models.CharField(max_length=255, verbose_name='Имя')
-    # Contact info from public form
     contact_type = models.ForeignKey(
         'clients.ContactType', on_delete=models.SET_NULL,
         null=True, blank=True, verbose_name='Тип контакта'
     )
     contact_value = models.CharField(max_length=500, blank=True, verbose_name='Контакт')
     email = models.EmailField(blank=True, verbose_name='Email')
-    # Lead source
     lead_source = models.ForeignKey(
         'clients.LeadSource', on_delete=models.SET_NULL,
         null=True, blank=True, verbose_name='Источник'
     )
-    service = models.ForeignKey(
-        'services.Service', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='leads', verbose_name='Услуга'
+    services = models.ManyToManyField(
+        'services.Service', blank=True,
+        related_name='leads', verbose_name='Услуги'
     )
     description = models.TextField(blank=True, verbose_name='Описание задачи')
     budget = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Бюджет')
