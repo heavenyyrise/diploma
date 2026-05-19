@@ -2,8 +2,18 @@ import { useState, useEffect, useCallback } from 'react'
 import { leads as leadsApi, clients as clientsApi, services as servicesApi, orders as ordersApi } from '../../api'
 import { Card, PageHeader, Badge, Button, Modal, inputStyle, formatDate, EmptyState } from '../../components/ui'
 
-const STATUS_COLORS = { new: 'var(--warning)', accepted: 'var(--success)', rejected: 'var(--danger)' }
-const STATUS_LABELS = { new: 'Новая', accepted: 'Принята', rejected: 'Отклонена' }
+const STATUS_COLORS = {
+  new: 'var(--warning)',
+  in_discussion: 'var(--info)',
+  accepted: 'var(--success)',
+  rejected: 'var(--danger)',
+}
+const STATUS_LABELS = {
+  new: 'Новая',
+  in_discussion: 'В обсуждении',
+  accepted: 'Принята',
+  rejected: 'Отклонена',
+}
 
 export default function LeadsPage() {
   const [data, setData] = useState([])
@@ -45,6 +55,12 @@ export default function LeadsPage() {
 
   const reject = async id => { await leadsApi.reject(id); load(); setSelected(null) }
 
+  const discuss = async lead => {
+    await leadsApi.update(lead.id, { status: 'in_discussion' })
+    load()
+    setSelected(null)
+  }
+
   return (
     <div style={{ padding: '36px 40px' }}>
       <PageHeader
@@ -63,7 +79,13 @@ export default function LeadsPage() {
       />
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {[['', 'Все'], ['new', 'Новые'], ['accepted', 'Принятые'], ['rejected', 'Отклонённые']].map(([v, l]) => (
+        {[
+          ['', 'Все'],
+          ['new', 'Новые'],
+          ['in_discussion', 'В обсуждении'],
+          ['accepted', 'Принятые'],
+          ['rejected', 'Отклонённые'],
+        ].map(([v, l]) => (
           <button key={v} onClick={() => setFilter(v)}
             style={{ padding: '6px 16px', borderRadius: 20, fontSize: '0.82rem', cursor: 'pointer', background: filter === v ? 'var(--accent)' : 'var(--bg-card)', color: filter === v ? '#fff' : 'var(--text-secondary)', border: filter === v ? 'none' : '1px solid var(--border)', fontWeight: filter === v ? 500 : 400 }}>
             {l}
@@ -105,6 +127,7 @@ export default function LeadsPage() {
           onClose={() => setSelected(null)}
           onAccept={() => accept(selected)}
           onReject={() => reject(selected.id)}
+          onDiscuss={() => discuss(selected)}
           onUpdated={() => { load(); setSelected(null) }}
         />
       )}
@@ -222,10 +245,16 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
   )
 }
 
-function LeadDetailModal({ lead, onClose, onAccept, onReject, onUpdated }) {
+function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdated }) {
   const [notes, setNotes] = useState(lead.notes || '')
   const [saving, setSaving] = useState(false)
-  const saveNotes = async () => { setSaving(true); try { await leadsApi.update(lead.id, { notes }); onUpdated() } finally { setSaving(false) } }
+  const saveNotes = async () => {
+    setSaving(true)
+    try { await leadsApi.update(lead.id, { notes }); onUpdated() }
+    finally { setSaving(false) }
+  }
+
+  const isActive = lead.status === 'new' || lead.status === 'in_discussion'
 
   return (
     <Modal open onClose={onClose} title={`Заявка от ${lead.name}`} width={560}>
@@ -248,7 +277,6 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onUpdated }) {
           ))}
         </div>
 
-        {/* Услуги */}
         {lead.services_detail?.length > 0 && (
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Услуги</div>
@@ -279,10 +307,19 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onUpdated }) {
           </button>
         </div>
 
-        {lead.status === 'new' && (
-          <div style={{ display: 'flex', gap: 10, paddingTop: 4, borderTop: '1px solid var(--border)' }}>
-            <Button variant="danger" onClick={onReject} style={{ flex: 1, justifyContent: 'center' }}>Отклонить</Button>
-            <Button onClick={onAccept} style={{ flex: 2, justifyContent: 'center' }}>✓ Принять — создать клиента и заказ</Button>
+        {isActive && (
+          <div style={{ display: 'flex', gap: 8, paddingTop: 4, borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+            <Button variant="danger" onClick={onReject} style={{ flex: 1, justifyContent: 'center' }}>
+              Отклонить
+            </Button>
+            {lead.status === 'new' && (
+              <Button variant="ghost" onClick={onDiscuss} style={{ flex: 1, justifyContent: 'center' }}>
+                ✦ В обсуждении
+              </Button>
+            )}
+            <Button onClick={onAccept} style={{ flex: 2, justifyContent: 'center' }}>
+              ✓ Принять — создать клиента и заказ
+            </Button>
           </div>
         )}
       </div>

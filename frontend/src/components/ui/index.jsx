@@ -20,6 +20,7 @@ export function PageHeader({ title, subtitle, action }) {
 
 const BADGE_COLORS = {
   in_progress: { bg: 'var(--info-bg)', color: 'var(--info)' },
+  in_discussion: { bg: 'var(--info-bg)', color: 'var(--info)' },
   completed:   { bg: 'var(--success-bg)', color: 'var(--success)' },
   frozen:      { bg: '#f4f4f5', color: '#71717a' },
   cancelled:   { bg: 'var(--danger-bg)', color: 'var(--danger)' },

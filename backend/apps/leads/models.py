@@ -2,7 +2,12 @@ from django.db import models
 
 
 class Lead(models.Model):
-    STATUS_CHOICES = [('new', 'Новая'), ('accepted', 'Принята'), ('rejected', 'Отклонена')]
+    STATUS_CHOICES = [
+        ('new', 'Новая'),
+        ('in_discussion', 'В обсуждении'),
+        ('accepted', 'Принята'),
+        ('rejected', 'Отклонена'),
+    ]
 
     name = models.CharField(max_length=255, verbose_name='Имя')
     contact_type = models.ForeignKey(
