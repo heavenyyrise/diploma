@@ -125,7 +125,8 @@ export function Table({ columns, data, onRowClick, emptyState }) {
 }
 
 export function formatMoney(n) {
-  return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n || 0)
+  const val = Number(n || 0)
+  return `${val.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} BYN`
 }
 
 export function formatDate(d) {

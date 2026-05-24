@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { leads as leadsApi, clients as clientsApi, services as servicesApi, orders as ordersApi } from '../../api'
-import { Card, PageHeader, Badge, Button, Modal, inputStyle, formatDate, EmptyState } from '../../components/ui'
+import { Card, PageHeader, Badge, Button, Modal, inputStyle, formatDate, formatMoney, EmptyState } from '../../components/ui'
+import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 
 const STATUS_COLORS = {
   new: 'var(--warning)',
@@ -107,7 +108,7 @@ export default function LeadsPage() {
                 {lead.contact_display}
                 {lead.lead_source_detail && <> · <span style={{ color: 'var(--accent-dark)' }}>{lead.lead_source_detail.name}</span></>}
                 {lead.services_detail?.length > 0 && <> · {lead.services_detail.map(s => s.name).join(', ')}</>}
-                {lead.budget && <> · {Number(lead.budget).toLocaleString('ru-RU')} ₽</>}
+                {lead.budget && <> · {formatMoney(lead.budget)}</>}
               </div>
             </div>
             {lead.description && (
@@ -157,8 +158,15 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
     services: initial.services || [],
   })
   const [saving, setSaving] = useState(false)
+  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
-  const toggleService = id => setForm(p => ({ ...p, services: p.services.includes(id) ? p.services.filter(s => s !== id) : [...p.services, id] }))
+  const toggleService = id => setForm(p => applyServiceToggle(p, id, services, priceManuallyEdited))
+
+  useEffect(() => {
+    if (initial.services?.length && services.length) {
+      setForm(p => ({ ...p, price: calcServicesPrice(initial.services, services) }))
+    }
+  }, [services])
 
   const save = async () => {
     setSaving(true)
@@ -224,8 +232,9 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Сумма (₽)</label>
-            <input type="number" style={inputStyle} value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
+            <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Сумма (BYN)</label>
+            <input type="number" style={inputStyle} value={form.price} onChange={e => { setPriceManuallyEdited(true); set('price', e.target.value) }} placeholder="0" />
+            <PriceAutoHint selectedIds={form.services} servicesList={services} manual={priceManuallyEdited} />
           </div>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Дедлайн</label>
@@ -265,7 +274,7 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdat
             lead.contact_type_detail && ['Контакт', `${lead.contact_type_detail.name}: ${lead.contact_value}`],
             lead.email && ['Email', lead.email],
             lead.lead_source_detail && ['Источник', lead.lead_source_detail.name],
-            lead.budget && ['Бюджет', `${Number(lead.budget).toLocaleString('ru-RU')} ₽`],
+            lead.budget && ['Бюджет', formatMoney(lead.budget)],
             lead.deadline && ['Дедлайн', formatDate(lead.deadline)],
             ['Дата заявки', formatDate(lead.created_at)],
             ['Статус', STATUS_LABELS[lead.status]],

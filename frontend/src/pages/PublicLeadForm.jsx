@@ -162,7 +162,7 @@ export default function PublicLeadForm() {
                                   }}>
                                   {sel && <span style={{ marginRight: 5 }}>✓</span>}
                                   {s.name}
-                                  {s.price ? <span style={{ opacity: 0.75, fontSize: '0.8rem', marginLeft: 6 }}>от {Number(s.price).toLocaleString('ru-RU')} ₽</span> : null}
+                                  {s.price ? <span style={{ opacity: 0.75, fontSize: '0.8rem', marginLeft: 6 }}>от {Number(s.price).toLocaleString('ru-RU')} BYN</span> : null}
                                 </button>
                               )
                             })}
@@ -186,7 +186,7 @@ export default function PublicLeadForm() {
                       {(cfg.show_budget || cfg.show_deadline) && (
                         <div style={{ display: 'grid', gridTemplateColumns: cfg.show_budget && cfg.show_deadline ? '1fr 1fr' : '1fr', gap: 14 }}>
                           {cfg.show_budget && (
-                            <FField label="Бюджет (₽)" hint="Приблизительно">
+                            <FField label="Бюджет (BYN)" hint="Приблизительно">
                               <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)}
                                 placeholder="0" min="0" style={fStyle} />
                             </FField>

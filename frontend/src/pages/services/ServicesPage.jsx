@@ -108,7 +108,7 @@ function CreateServiceModal({ open, onClose, onCreated }) {
     <Modal open={open} onClose={onClose} title="Новая услуга">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Field label="Название" required><input style={inputStyle} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Например: Дизайн логотипа" /></Field>
-        <Field label="Базовая цена (₽)"><input style={inputStyle} type="number" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" /></Field>
+        <Field label="Базовая цена (BYN)"><input style={inputStyle} type="number" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" /></Field>
         <Field label="Описание"><textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Что входит в услугу..." /></Field>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.875rem' }}><input type="checkbox" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} />Услуга активна</label>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}><Button variant="ghost" onClick={onClose}>Отмена</Button><Button onClick={handle} disabled={loading || !form.name}>{loading ? '...' : 'Создать'}</Button></div>

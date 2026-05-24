@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
 import { Card, Badge, Button, inputStyle, formatMoney, formatDate } from '../../components/ui'
+import { applyServiceToggle, PriceAutoHint } from '../../utils/orderPrice'
 
 const STATUSES = [
   { value: 'in_progress', label: 'В работе' },
@@ -20,6 +21,7 @@ export default function OrderDetail() {
   const [clients, setClients] = useState([])
   const [servicesList, setServicesList] = useState([])
   const [saving, setSaving] = useState(false)
+  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
 
   useEffect(() => {
     ordersApi.get(id).then(r => {
@@ -39,7 +41,12 @@ export default function OrderDetail() {
   }, [id])
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
-  const toggleService = sid => setForm(p => ({ ...p, services: p.services.includes(sid) ? p.services.filter(s => s !== sid) : [...p.services, sid] }))
+  const toggleService = sid => setForm(p => applyServiceToggle(p, sid, servicesList, priceManuallyEdited))
+
+  const startEditing = () => {
+    setPriceManuallyEdited(false)
+    setEditing(true)
+  }
 
   const save = async () => {
     setSaving(true)
@@ -93,7 +100,7 @@ export default function OrderDetail() {
         <div style={{ display: 'flex', gap: 8 }}>
           {editing
             ? <><Button variant="ghost" onClick={() => setEditing(false)}>Отмена</Button><Button onClick={save} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</Button></>
-            : <><Button variant="ghost" onClick={() => setEditing(true)}>Редактировать</Button><Button variant="danger" onClick={deleteOrder}>Удалить</Button></>
+            : <><Button variant="ghost" onClick={startEditing}>Редактировать</Button><Button variant="danger" onClick={deleteOrder}>Удалить</Button></>
           }
         </div>
       </div>
@@ -198,7 +205,12 @@ export default function OrderDetail() {
 
             <Row label="Сумма">
               {editing
-                ? <input type="number" value={form.price} onChange={e => set('price', e.target.value)} style={inputStyle} />
+                ? (
+                  <div>
+                    <input type="number" value={form.price} onChange={e => { setPriceManuallyEdited(true); set('price', e.target.value) }} style={inputStyle} />
+                    <PriceAutoHint selectedIds={form.services} servicesList={servicesList} manual={priceManuallyEdited} />
+                  </div>
+                )
                 : <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--accent)' }}>{formatMoney(order.price)}</span>
               }
             </Row>

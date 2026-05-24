@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
 import { Card, PageHeader, Badge, Button, Modal, Field, inputStyle, Table, EmptyState, formatMoney, formatDate } from '../../components/ui'
+import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 import { CreateClientModal } from '../clients/ClientsPage'
 
 const STATUSES = [
@@ -119,19 +120,27 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
   const [showCreateClient, setShowCreateClient] = useState(false)
   const [leadSources, setLeadSources] = useState([])
   const [contactTypes, setContactTypes] = useState([])
+  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   useEffect(() => { setClients(initialClients || []) }, [initialClients])
 
   useEffect(() => {
     if (open) {
+      setPriceManuallyEdited(false)
       setForm({ title: '', client: '', services: [], description: '', status: 'in_progress', price: '', deadline: '', ...initialData })
       clientsApi.leadSources().then(r => setLeadSources(r.data.results || r.data))
       clientsApi.contactTypes().then(r => setContactTypes(r.data.results || r.data))
     }
   }, [open])
 
-  const toggleService = id => setForm(p => ({ ...p, services: p.services.includes(id) ? p.services.filter(s => s !== id) : [...p.services, id] }))
+  useEffect(() => {
+    if (open && form.services?.length && services.length && !priceManuallyEdited) {
+      setForm(p => ({ ...p, price: calcServicesPrice(p.services, services) }))
+    }
+  }, [open, services])
+
+  const toggleService = id => setForm(p => applyServiceToggle(p, id, services, priceManuallyEdited))
 
   const handle = async () => {
     if (!form.title) return
@@ -199,8 +208,9 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
                 <option value="completed">Завершён</option>
               </select>
             </Field>
-            <Field label="Сумма (₽)">
-              <input style={inputStyle} type="number" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0" />
+            <Field label="Сумма (BYN)">
+              <input style={inputStyle} type="number" value={form.price} onChange={e => { setPriceManuallyEdited(true); set('price', e.target.value) }} placeholder="0" />
+              <PriceAutoHint selectedIds={form.services} servicesList={services} manual={priceManuallyEdited} />
             </Field>
           </div>
 
