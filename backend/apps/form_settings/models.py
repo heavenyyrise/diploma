@@ -2,6 +2,11 @@ from django.db import models
 
 
 class FormSettings(models.Model):
+    user = models.OneToOneField(
+        'users.User', on_delete=models.CASCADE,
+        related_name='form_settings', verbose_name='Пользователь',
+        null=True, blank=True,
+    )
     title = models.CharField(max_length=255, default='Оставить заявку', verbose_name='Заголовок формы')
     subtitle = models.TextField(default='Заполните форму и я свяжусь с вами в ближайшее время, чтобы обсудить детали.', verbose_name='Подзаголовок')
     button_text = models.CharField(max_length=100, default='Отправить заявку', verbose_name='Текст кнопки')
@@ -19,9 +24,4 @@ class FormSettings(models.Model):
         verbose_name_plural = 'Настройки формы'
 
     def __str__(self):
-        return 'Настройки публичной формы'
-
-    @classmethod
-    def get_instance(cls):
-        obj, _ = cls.objects.get_or_create(pk=1)
-        return obj
+        return f'Настройки формы — {self.user_id}'

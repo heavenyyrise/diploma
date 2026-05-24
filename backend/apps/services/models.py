@@ -1,6 +1,11 @@
 from django.db import models
 
 class Service(models.Model):
+    user = models.ForeignKey(
+        'users.User', on_delete=models.CASCADE,
+        related_name='services', verbose_name='Пользователь',
+        null=True, blank=True,
+    )
     name = models.CharField(max_length=255, verbose_name='Название')
     description = models.TextField(blank=True, verbose_name='Описание')
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Базовая цена')

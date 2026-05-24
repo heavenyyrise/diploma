@@ -2,12 +2,13 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.mixins import UserScopedMixin
 from .models import Order
 from .serializers import OrderSerializer, OrderListSerializer
 from .filters import OrderFilter
 
 
-class OrderViewSet(viewsets.ModelViewSet):
+class OrderViewSet(UserScopedMixin, viewsets.ModelViewSet):
     queryset = Order.objects.select_related('client__lead_source').prefetch_related('client__contacts__contact_type').all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = OrderFilter
@@ -24,7 +25,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def stats(self, request):
         from django.db.models import Sum
         from django.utils import timezone
-        qs = Order.objects.all()
+        qs = Order.objects.filter(user=request.user)
         now = timezone.now()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         return Response({
@@ -40,5 +41,5 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def recent(self, request):
-        orders = Order.objects.select_related('client').prefetch_related('services').order_by('-created_at')[:10]
+        orders = Order.objects.filter(user=request.user).select_related('client').prefetch_related('services').order_by('-created_at')[:10]
         return Response(OrderListSerializer(orders, many=True).data)

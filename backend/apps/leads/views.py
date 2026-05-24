@@ -4,21 +4,37 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib.auth import get_user_model
+from apps.core.mixins import UserScopedMixin
 from .models import Lead
 from .serializers import LeadSerializer, LeadPublicSerializer
+
+User = get_user_model()
+
+
+def _get_user_id(request):
+    return request.query_params.get('user_id') or request.data.get('user_id')
 
 
 class LeadPublicCreateView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = LeadPublicSerializer(data=request.data)
+        user_id = _get_user_id(request)
+        if not user_id:
+            return Response({'user_id': 'Обязательный параметр'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            owner = User.objects.get(pk=user_id, is_active=True)
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response({'user_id': 'Пользователь не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LeadPublicSerializer(data=request.data, context={'request': request, 'owner': owner})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(user=owner)
         return Response({'message': 'Заявка отправлена!'}, status=status.HTTP_201_CREATED)
 
 
-class LeadViewSet(viewsets.ModelViewSet):
+class LeadViewSet(UserScopedMixin, viewsets.ModelViewSet):
     queryset = Lead.objects.select_related('lead_source', 'contact_type').prefetch_related('services').all()
     serializer_class = LeadSerializer
     permission_classes = [IsAuthenticated]
@@ -35,6 +51,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         from apps.orders.models import Order
 
         client = Client.objects.create(
+            user=request.user,
             name=lead.name,
             lead_source=lead.lead_source,
             notes=f'Создан из заявки #{lead.id}',
@@ -57,7 +74,6 @@ class LeadViewSet(viewsets.ModelViewSet):
                 value=lead.email,
             )
 
-        # Название заказа: первая услуга или дефолт
         first_service = lead.services.first()
         title = (
             first_service.name if first_service
@@ -65,6 +81,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         )
 
         order = Order.objects.create(
+            user=request.user,
             title=title,
             client=client,
             description=lead.description,
@@ -73,7 +90,6 @@ class LeadViewSet(viewsets.ModelViewSet):
             status='in_progress',
             source='manual',
         )
-        # Переносим все услуги из заявки в заказ
         order.services.set(lead.services.all())
 
         lead.status = 'accepted'

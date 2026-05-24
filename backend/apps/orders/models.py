@@ -14,6 +14,11 @@ class Order(models.Model):
     ]
 
     title = models.CharField(max_length=255, verbose_name='Название заказа')
+    user = models.ForeignKey(
+        'users.User', on_delete=models.CASCADE,
+        related_name='orders', verbose_name='Пользователь',
+        null=True, blank=True,
+    )
     client = models.ForeignKey(
         'clients.Client', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='orders', verbose_name='Заказчик'

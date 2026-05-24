@@ -2,6 +2,7 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.mixins import UserScopedMixin
 from .models import Client, ContactInfo, ContactType, LeadSource
 from .serializers import (
     ClientSerializer, ClientShortSerializer,
@@ -27,7 +28,7 @@ class ContactTypeViewSet(viewsets.ModelViewSet):
     ordering = ['order', 'name']
 
 
-class ClientViewSet(viewsets.ModelViewSet):
+class ClientViewSet(UserScopedMixin, viewsets.ModelViewSet):
     queryset = Client.objects.prefetch_related('contacts__contact_type').select_related('lead_source').all()
     serializer_class = ClientSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -52,7 +53,7 @@ class ClientViewSet(viewsets.ModelViewSet):
             {'contact_type_id': c['contact_type_id'], 'value': c['value']}
             for c in parsed_contacts
         ]
-        client = serializer.save()
+        client = serializer.save(user=request.user)
         return Response(ClientSerializer(client).data, status=201)
 
     def update(self, request, *args, **kwargs):

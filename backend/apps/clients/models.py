@@ -33,6 +33,11 @@ class ContactType(models.Model):
 
 
 class Client(models.Model):
+    user = models.ForeignKey(
+        'users.User', on_delete=models.CASCADE,
+        related_name='clients', verbose_name='Пользователь',
+        null=True, blank=True,
+    )
     name = models.CharField(max_length=255, verbose_name='Имя')
     lead_source = models.ForeignKey(
         LeadSource, on_delete=models.SET_NULL,

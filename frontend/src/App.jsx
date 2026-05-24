@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { LeadsProvider } from './context/LeadsContext'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import Dashboard from './pages/Dashboard'
 import OrdersPage from './pages/orders/OrdersPage'
 import OrderDetail from './pages/orders/OrderDetail'
@@ -24,6 +26,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/form" element={<PublicLeadForm />} />
       <Route path="/" element={<PrivateRoute><LeadsProvider><Layout /></LeadsProvider></PrivateRoute>}>
         <Route index element={<Dashboard />} />

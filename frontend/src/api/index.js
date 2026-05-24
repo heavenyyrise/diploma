@@ -32,6 +32,9 @@ export default api
 
 export const auth = {
   login: d => api.post('/auth/token/', d),
+  register: d => api.post('/auth/register/', d),
+  verifyEmail: token => api.get('/auth/verify-email/', { params: { token } }),
+  resendVerification: d => api.post('/auth/resend-verification/', d),
   me: () => api.get('/auth/me/'),
 }
 export const orders = {

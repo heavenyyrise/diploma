@@ -10,6 +10,11 @@ class Lead(models.Model):
     ]
 
     name = models.CharField(max_length=255, verbose_name='Имя')
+    user = models.ForeignKey(
+        'users.User', on_delete=models.CASCADE,
+        related_name='leads', verbose_name='Пользователь',
+        null=True, blank=True,
+    )
     contact_type = models.ForeignKey(
         'clients.ContactType', on_delete=models.SET_NULL,
         null=True, blank=True, verbose_name='Тип контакта'

@@ -2,10 +2,11 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.mixins import UserScopedMixin
 from .models import Service
 from .serializers import ServiceSerializer
 
-class ServiceViewSet(viewsets.ModelViewSet):
+class ServiceViewSet(UserScopedMixin, viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
