@@ -2,6 +2,8 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Sum, Q, Value, FloatField
+from django.db.models.functions import Coalesce
 from apps.core.mixins import UserScopedMixin
 from .models import Client, ContactInfo, ContactType, LeadSource
 from .serializers import (
@@ -34,8 +36,18 @@ class ClientViewSet(UserScopedMixin, viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_regular', 'lead_source']
     search_fields = ['name', 'contacts__value']
-    ordering_fields = ['name', 'created_at']
+    ordering_fields = ['name', 'created_at', 'income_total']
     ordering = ['-created_at']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.annotate(
+            income_total=Coalesce(
+                Sum('orders__price', filter=Q(orders__status='completed')),
+                Value(0.0),
+                output_field=FloatField(),
+            )
+        )
 
     def create(self, request, *args, **kwargs):
         contacts_data = request.data.pop('contacts', [])

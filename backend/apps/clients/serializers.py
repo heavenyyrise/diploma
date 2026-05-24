@@ -24,7 +24,7 @@ class ContactInfoSerializer(serializers.ModelSerializer):
 
 class ClientSerializer(serializers.ModelSerializer):
     total_orders = serializers.ReadOnlyField()
-    total_income = serializers.ReadOnlyField()
+    total_income = serializers.SerializerMethodField()
     active_orders = serializers.ReadOnlyField()
     primary_contact = serializers.ReadOnlyField()
     lead_source_name = serializers.CharField(source='lead_source.name', read_only=True)
@@ -39,6 +39,11 @@ class ClientSerializer(serializers.ModelSerializer):
             'total_orders', 'total_income', 'active_orders',
         ]
         read_only_fields = ['id', 'created_at']
+
+    def get_total_income(self, obj):
+        if hasattr(obj, 'income_total'):
+            return float(obj.income_total)
+        return obj.total_income
 
     def create(self, validated_data):
         contacts_data = self.context.get('contacts', [])

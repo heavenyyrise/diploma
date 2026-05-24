@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clients as clientsApi } from '../../api'
-import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, formatDate } from '../../components/ui'
+import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, formatDate, formatMoney } from '../../components/ui'
 import ContactsEditor from '../../components/ui/ContactsEditor'
 
 export default function ClientsPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [incomeSort, setIncomeSort] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [leadSources, setLeadSources] = useState([])
   const [contactTypes, setContactTypes] = useState([])
@@ -15,8 +16,10 @@ export default function ClientsPage() {
 
   const load = useCallback(() => {
     setLoading(true)
-    clientsApi.list(search ? { search } : {}).then(r => setData(r.data.results || r.data)).finally(() => setLoading(false))
-  }, [search])
+    const params = { ordering: incomeSort || '-created_at' }
+    if (search) params.search = search
+    clientsApi.list(params).then(r => setData(r.data.results || r.data)).finally(() => setLoading(false))
+  }, [search, incomeSort])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
@@ -38,7 +41,33 @@ export default function ClientsPage() {
     <div style={{ padding: '36px 40px' }}>
       <PageHeader title="Клиенты" subtitle="Ваши заказчики" action={<Button onClick={() => setShowCreate(true)}>+ Новый клиент</Button>} />
       <Card style={{ padding: '16px 20px', marginBottom: 20 }}>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск по имени, контакту..." style={{ ...inputStyle, width: 300 }} />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {[
+            {
+              label: 'Поиск',
+              el: <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Имя, контакт..." style={{ ...inputStyle, width: 200 }} />,
+            },
+            {
+              label: 'Доход от клиента',
+              el: (
+                <select
+                  value={incomeSort}
+                  onChange={e => setIncomeSort(e.target.value)}
+                  style={{ ...inputStyle, width: 160, cursor: 'pointer' }}
+                >
+                  <option value="">Все</option>
+                  <option value="-income_total">По убыванию</option>
+                  <option value="income_total">По возрастанию</option>
+                </select>
+              ),
+            },
+          ].map(({ label, el }) => (
+            <div key={label}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
+              {el}
+            </div>
+          ))}
+        </div>
       </Card>
       <Card>
         {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>
