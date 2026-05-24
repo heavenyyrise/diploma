@@ -75,10 +75,7 @@ class LeadViewSet(UserScopedMixin, viewsets.ModelViewSet):
             )
 
         first_service = lead.services.first()
-        title = (
-            first_service.name if first_service
-            else (lead.description[:100] if lead.description else f'Заказ от {lead.name}')
-        )
+        title = first_service.name if first_service else f'Заказ от {lead.name}'
 
         order = Order.objects.create(
             user=request.user,
@@ -91,6 +88,9 @@ class LeadViewSet(UserScopedMixin, viewsets.ModelViewSet):
             source='manual',
         )
         order.services.set(lead.services.all())
+
+        from apps.orders.services import log_order_created
+        log_order_created(order, request.user)
 
         lead.status = 'accepted'
         lead.save()

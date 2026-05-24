@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { formSettings as api, services as servicesApi, clients as clientsApi } from '../api'
+import { useAuth } from '../context/AuthContext'
+import { publicFormUrl } from '../utils/publicFormUrl'
 import { Card, PageHeader, Button, Field, inputStyle } from '../components/ui'
 
 const FORM_FIELDS = [
@@ -11,6 +13,7 @@ const FORM_FIELDS = [
 ]
 
 export default function FormSettingsPage() {
+  const { user } = useAuth()
   const [settings, setSettings] = useState(null)
   const [services, setServices] = useState([])
   const [leadSources, setLeadSources] = useState([])
@@ -41,12 +44,12 @@ export default function FormSettingsPage() {
     finally { setSaving(false) }
   }
 
-  const formLink = `${window.location.origin}/form`
+  const formLink = publicFormUrl(user?.id)
 
   if (!settings) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Загрузка...</div>
 
   return (
-    <div style={{ padding: '36px 40px', maxWidth: 960 }}>
+    <div style={{ padding: '36px 40px', maxWidth: 1400 }}>
       <PageHeader
         title="Настройки формы"
         subtitle="Редактируйте публичную форму заявки"

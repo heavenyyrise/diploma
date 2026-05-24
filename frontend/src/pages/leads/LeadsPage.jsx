@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { leads as leadsApi, clients as clientsApi, services as servicesApi, orders as ordersApi } from '../../api'
+import { useAuth } from '../../context/AuthContext'
+import { publicFormUrl } from '../../utils/publicFormUrl'
 import { Card, PageHeader, Badge, Button, Modal, inputStyle, formatDate, formatMoney, EmptyState } from '../../components/ui'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 
@@ -17,6 +19,8 @@ const STATUS_LABELS = {
 }
 
 export default function LeadsPage() {
+  const { user } = useAuth()
+  const formLink = publicFormUrl(user?.id)
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
@@ -40,16 +44,18 @@ export default function LeadsPage() {
   const accept = async lead => {
     const r = await leadsApi.accept(lead.id)
     load()
+    clientsApi.list().then(res => setClientsList(res.data.results || res.data))
     setSelected(null)
-    const serviceIds = lead.services_detail?.map(s => s.id) || []
+    const firstService = lead.services_detail?.[0]
     setOrderData({
       orderId: r.data.order_id,
       clientId: r.data.client_id,
-      title: lead.description?.slice(0, 100) || `Заказ от ${lead.name}`,
+      fromLead: true,
+      title: firstService?.name || `Заказ от ${lead.name}`,
       description: lead.description || '',
       price: lead.budget || '',
       deadline: lead.deadline || '',
-      services: serviceIds,
+      services: lead.services_detail?.map(s => s.id) || [],
     })
     setShowOrderModal(true)
   }
@@ -70,10 +76,10 @@ export default function LeadsPage() {
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ссылка:</span>
-            <code onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/form`)}
+            <code onClick={() => navigator.clipboard?.writeText(formLink)}
               style={{ fontSize: '0.8rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'monospace' }}
               title="Скопировать">
-              {window.location.origin}/form
+              {formLink}
             </code>
           </div>
         }
@@ -148,13 +154,14 @@ export default function LeadsPage() {
 }
 
 function EditOrderModal({ orderId, clientId, initial, clients, services, onClose }) {
+  const fromLead = initial.fromLead
   const [form, setForm] = useState({
     title: initial.title,
     description: initial.description,
     status: 'in_progress',
     price: initial.price || '',
     deadline: initial.deadline || '',
-    client: clientId || '',
+    client: clientId ? String(clientId) : '',
     services: initial.services || [],
   })
   const [saving, setSaving] = useState(false)
@@ -177,7 +184,7 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
         status: form.status,
         price: form.price || 0,
         deadline: form.deadline || null,
-        client: form.client || null,
+        client: form.client ? Number(form.client) : null,
         services: form.services,
       })
       onClose()
@@ -199,7 +206,12 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Клиент</label>
             <select style={inputStyle} value={form.client} onChange={e => set('client', e.target.value)}>
               <option value="">Без клиента</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {fromLead && clientId && (
+                <option value={String(clientId)}>Из заявки</option>
+              )}
+              {clients
+                .filter(c => !(fromLead && clientId && c.id === clientId))
+                .map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
             </select>
           </div>
           <div>

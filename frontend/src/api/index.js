@@ -45,6 +45,7 @@ export const orders = {
   delete: id => api.delete(`/orders/${id}/`),
   stats: () => api.get('/orders/stats/'),
   recent: () => api.get('/orders/recent/'),
+  changelog: id => api.get(`/orders/${id}/changelog/`),
 }
 export const clients = {
   list: p => api.get('/clients/', { params: p }),
@@ -84,9 +85,10 @@ export const leads = {
   delete: id => api.delete(`/leads/${id}/`),
   accept: id => api.post(`/leads/${id}/accept/`),
   reject: (id, d) => api.post(`/leads/${id}/reject/`, d),
+  createPublic: (userId, data) => axios.post('/api/leads/public/', { ...data, user_id: userId }),
 }
 export const formSettings = {
   get: () => api.get('/form-settings/'),
   update: d => api.patch('/form-settings/', d),
-  getPublic: () => axios.get('/api/form-settings/public/'),
+  getPublic: userId => axios.get('/api/form-settings/public/', { params: { user_id: userId } }),
 }

@@ -1,18 +1,12 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-
-const DEFAULT_CFG = {
-  title: 'Оставить заявку',
-  subtitle: 'Заполните форму и я свяжусь с вами в ближайшее время, чтобы обсудить детали.',
-  button_text: 'Отправить заявку',
-  success_message: 'Спасибо за обращение. Я свяжусь с вами в ближайшее время по указанным контактам.',
-  show_budget: true, show_deadline: true, show_description: true,
-  show_service: true, show_lead_source: true,
-  services: [], lead_sources: [], contact_types: [],
-}
+import { useSearchParams } from 'react-router-dom'
+import { formSettings as formSettingsApi, leads as leadsApi } from '../api'
 
 export default function PublicLeadForm() {
+  const [searchParams] = useSearchParams()
+  const userId = searchParams.get('user_id')
   const [cfg, setCfg] = useState(null)
+  const [loadError, setLoadError] = useState(null)
   const [form, setForm] = useState({
     name: '', description: '', budget: '', deadline: '',
     lead_source: '', contact_type: '', contact_value: '',
@@ -23,8 +17,17 @@ export default function PublicLeadForm() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    axios.get('/api/form-settings/public/').then(r => setCfg(r.data)).catch(() => setCfg(DEFAULT_CFG))
-  }, [])
+    if (!userId) {
+      setLoadError('Неверная ссылка на форму. Обратитесь к фрилансеру за актуальной ссылкой.')
+      setCfg(null)
+      return
+    }
+    setLoadError(null)
+    setCfg(null)
+    formSettingsApi.getPublic(userId)
+      .then(r => setCfg(r.data))
+      .catch(() => setLoadError('Не удалось загрузить форму. Проверьте ссылку или попробуйте позже.'))
+  }, [userId])
 
   useEffect(() => {
     if (cfg?.contact_types?.length && !form.contact_type) {
@@ -55,11 +58,20 @@ export default function PublicLeadForm() {
       if (form.lead_source) payload.lead_source = form.lead_source
       if (form.budget) payload.budget = form.budget
       if (form.deadline) payload.deadline = form.deadline
-      await axios.post('/api/leads/public/', payload)
+      await leadsApi.createPublic(userId, payload)
       setSent(true)
     } catch { setError('Что-то пошло не так. Попробуйте ещё раз.') }
     finally { setLoading(false) }
   }
+
+  if (loadError) return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ textAlign: 'center', maxWidth: 420 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 500, marginBottom: 12 }}>Форма недоступна</h1>
+        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '0.95rem' }}>{loadError}</p>
+      </div>
+    </div>
+  )
 
   if (!cfg) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text-muted)' }}>

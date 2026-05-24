@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Order
+from .models import Order, OrderChangeLog
+from .services import build_order_snapshot, log_order_changes, log_order_created, FIELD_LABELS
 from apps.clients.models import Client
 from apps.clients.serializers import ClientShortSerializer
 from apps.services.models import Service
@@ -50,13 +51,37 @@ class OrderSerializer(serializers.ModelSerializer):
         services = validated_data.pop('services', [])
         order = Order.objects.create(**validated_data)
         order.services.set(services)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            log_order_created(order, request.user)
         return order
 
     def update(self, instance, validated_data):
         services = validated_data.pop('services', None)
+        old_snapshot = build_order_snapshot(instance)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
         if services is not None:
             instance.services.set(services)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            log_order_changes(instance, old_snapshot, build_order_snapshot(instance), request.user)
         return instance
+
+
+class OrderChangeLogSerializer(serializers.ModelSerializer):
+    field_label = serializers.SerializerMethodField()
+    changed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderChangeLog
+        fields = ['id', 'field', 'field_label', 'old_value', 'new_value', 'changed_at', 'changed_by_name']
+
+    def get_field_label(self, obj):
+        return FIELD_LABELS.get(obj.field, obj.field)
+
+    def get_changed_by_name(self, obj):
+        if not obj.changed_by:
+            return '—'
+        return obj.changed_by.get_full_name() or obj.changed_by.username

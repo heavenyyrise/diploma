@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from apps.core.mixins import UserScopedMixin
 from .models import Order
-from .serializers import OrderSerializer, OrderListSerializer
+from .serializers import OrderSerializer, OrderListSerializer, OrderChangeLogSerializer
 from .filters import OrderFilter
 
 
@@ -43,3 +43,9 @@ class OrderViewSet(UserScopedMixin, viewsets.ModelViewSet):
     def recent(self, request):
         orders = Order.objects.filter(user=request.user).select_related('client').prefetch_related('services').order_by('-created_at')[:10]
         return Response(OrderListSerializer(orders, many=True).data)
+
+    @action(detail=True, methods=['get'])
+    def changelog(self, request, pk=None):
+        order = self.get_object()
+        logs = order.change_logs.select_related('changed_by').all()
+        return Response(OrderChangeLogSerializer(logs, many=True).data)

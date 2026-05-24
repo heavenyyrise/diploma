@@ -66,7 +66,7 @@ export default function ClientDetail() {
   if (!client) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Загрузка...</div>
 
   return (
-    <div style={{ padding: '36px 40px', maxWidth: 900 }}>
+    <div style={{ padding: '36px 40px', maxWidth: 1400 }}>
       <button onClick={() => navigate('/clients')} style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none' }}>← Назад к клиентам</button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
