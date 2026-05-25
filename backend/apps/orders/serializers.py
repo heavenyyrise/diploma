@@ -1,6 +1,8 @@
+import os
 from rest_framework import serializers
-from .models import Order, OrderChangeLog
+from .models import Order, OrderChangeLog, OrderAttachment
 from .services import build_order_snapshot, log_order_changes, log_order_created, FIELD_LABELS
+from .validators import validate_order_status_for_deadline
 from apps.clients.models import Client
 from apps.clients.serializers import ClientShortSerializer
 from apps.services.models import Service
@@ -47,6 +49,15 @@ class OrderSerializer(serializers.ModelSerializer):
             self.fields['client'].queryset = Client.objects.filter(user=request.user)
             self.fields['services'].queryset = Service.objects.filter(user=request.user)
 
+    def validate(self, attrs):
+        status = attrs.get('status', getattr(self.instance, 'status', 'in_progress'))
+        deadline = attrs.get('deadline', getattr(self.instance, 'deadline', None))
+        created_at = self.instance.created_at if self.instance else None
+        error = validate_order_status_for_deadline(status, deadline, created_at)
+        if error:
+            raise serializers.ValidationError({'status': error})
+        return attrs
+
     def create(self, validated_data):
         services = validated_data.pop('services', [])
         order = Order.objects.create(**validated_data)
@@ -85,3 +96,52 @@ class OrderChangeLogSerializer(serializers.ModelSerializer):
         if not obj.changed_by:
             return '—'
         return obj.changed_by.get_full_name() or obj.changed_by.username
+
+
+ALLOWED_ATTACHMENT_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.pdf', '.docx', '.zip'}
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
+
+
+class OrderAttachmentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    uploaded_by_name = serializers.SerializerMethodField()
+    is_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderAttachment
+        fields = [
+            'id', 'original_name', 'file_size', 'file_url',
+            'is_image', 'uploaded_at', 'uploaded_by_name',
+        ]
+        read_only_fields = fields
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url if obj.file else ''
+
+    def get_uploaded_by_name(self, obj):
+        if not obj.uploaded_by:
+            return '—'
+        return obj.uploaded_by.get_full_name() or obj.uploaded_by.username
+
+    def get_is_image(self, obj):
+        ext = os.path.splitext(obj.original_name)[1].lower()
+        return ext in {'.jpg', '.jpeg', '.png'}
+
+
+class OrderAttachmentUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderAttachment
+        fields = ['file']
+
+    def validate_file(self, value):
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in ALLOWED_ATTACHMENT_EXTENSIONS:
+            raise serializers.ValidationError(
+                'Допустимые форматы: JPG, PNG, PDF, DOCX, ZIP.'
+            )
+        if value.size > MAX_ATTACHMENT_SIZE:
+            raise serializers.ValidationError('Максимальный размер файла — 10 МБ.')
+        return value

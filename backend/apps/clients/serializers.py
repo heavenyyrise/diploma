@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Client, ContactInfo, ContactType, LeadSource
+from .validators import validate_client_name, validate_name_field
 
 
 class LeadSourceSerializer(serializers.ModelSerializer):
@@ -7,11 +8,25 @@ class LeadSourceSerializer(serializers.ModelSerializer):
         model = LeadSource
         fields = ['id', 'name', 'is_active', 'order']
 
+    def validate(self, attrs):
+        name = attrs.get('name', getattr(self.instance, 'name', ''))
+        error = validate_name_field(name, 'Название')
+        if error:
+            raise serializers.ValidationError({'name': error})
+        return attrs
+
 
 class ContactTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactType
         fields = ['id', 'name', 'is_active', 'order']
+
+    def validate(self, attrs):
+        name = attrs.get('name', getattr(self.instance, 'name', ''))
+        error = validate_name_field(name, 'Название')
+        if error:
+            raise serializers.ValidationError({'name': error})
+        return attrs
 
 
 class ContactInfoSerializer(serializers.ModelSerializer):
@@ -44,6 +59,13 @@ class ClientSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'income_total'):
             return float(obj.income_total)
         return obj.total_income
+
+    def validate(self, attrs):
+        name = attrs.get('name', getattr(self.instance, 'name', ''))
+        error = validate_client_name(name)
+        if error:
+            raise serializers.ValidationError({'name': error})
+        return attrs
 
     def create(self, validated_data):
         contacts_data = self.context.get('contacts', [])

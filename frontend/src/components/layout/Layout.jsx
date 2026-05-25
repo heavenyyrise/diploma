@@ -10,6 +10,7 @@ const NAV = [
   { to: '/clients',      label: 'Клиенты',       icon: <UsersIcon /> },
   { to: '/services',     label: 'Услуги',        icon: <StarIcon /> },
   { to: '/income',       label: 'Доходы',        icon: <ChartIcon /> },
+  { to: '/email',        label: 'Почта',         icon: <MailIcon /> },
   { to: '/form-settings',label: 'Форма заявки',  icon: <FormIcon /> },
 ]
 
@@ -76,3 +77,4 @@ function UsersIcon() { return <svg width="16" height="16" fill="none" stroke="cu
 function StarIcon()  { return <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> }
 function ChartIcon() { return <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> }
 function FormIcon()  { return <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg> }
+function MailIcon()  { return <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> }

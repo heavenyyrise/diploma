@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'apps.analytics.apps.AnalyticsConfig',
     'apps.leads.apps.LeadsConfig',
     'apps.form_settings.apps.FormSettingsConfig',
+    'apps.messaging.apps.MessagingConfig',
 ]
 
 MIDDLEWARE = [

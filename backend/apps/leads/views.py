@@ -74,8 +74,11 @@ class LeadViewSet(UserScopedMixin, viewsets.ModelViewSet):
                 value=lead.email,
             )
 
+        from apps.orders.validators import is_retrospective_deadline
+
         first_service = lead.services.first()
         title = first_service.name if first_service else f'Заказ от {lead.name}'
+        order_status = 'completed' if is_retrospective_deadline(lead.deadline) else 'in_progress'
 
         order = Order.objects.create(
             user=request.user,
@@ -84,7 +87,7 @@ class LeadViewSet(UserScopedMixin, viewsets.ModelViewSet):
             description=lead.description,
             price=lead.budget or 0,
             deadline=lead.deadline,
-            status='in_progress',
+            status=order_status,
             source='manual',
         )
         order.services.set(lead.services.all())

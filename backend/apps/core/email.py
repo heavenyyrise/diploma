@@ -25,3 +25,17 @@ def send_email(to, subject, template_name, context=None, reply_to=None):
         msg.content_subtype = 'html'
         msg.body = html_body
     msg.send()
+
+
+def send_raw_email(to, subject, body, reply_to=None, attachments=None):
+    """Send plain-text email. From = DEFAULT_FROM_EMAIL."""
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[to] if isinstance(to, str) else to,
+        reply_to=[reply_to] if reply_to else None,
+    )
+    for att in attachments or []:
+        msg.attach(att['filename'], att['content'], att.get('mimetype'))
+    msg.send()

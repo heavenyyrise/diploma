@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
 import { Card, PageHeader, Badge, Button, Modal, Field, inputStyle, Table, EmptyState, formatMoney, formatDate } from '../../components/ui'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
+import { getStatusDeadlineError } from '../../utils/orderStatus'
 import { CreateClientModal } from '../clients/ClientsPage'
 
 const STATUSES = [
@@ -141,6 +142,7 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
   }, [open, services])
 
   const toggleService = id => setForm(p => applyServiceToggle(p, id, services, priceManuallyEdited))
+  const statusError = getStatusDeadlineError(form.status, form.deadline, null)
 
   const handle = async () => {
     if (!form.title) return
@@ -207,6 +209,9 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
                 <option value="cancelled">Отменён</option>
                 <option value="completed">Завершён</option>
               </select>
+              {statusError && (
+                <div style={{ fontSize: '0.82rem', color: 'var(--danger, #dc2626)', marginTop: 6 }}>{statusError}</div>
+              )}
             </Field>
             <Field label="Сумма (BYN)">
               <input style={inputStyle} type="number" value={form.price} onChange={e => { setPriceManuallyEdited(true); set('price', e.target.value) }} placeholder="0" />
@@ -224,7 +229,7 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
             <Button variant="ghost" onClick={onClose}>Отмена</Button>
-            <Button onClick={handle} disabled={loading || !form.title}>{loading ? 'Сохраняем...' : 'Создать заказ'}</Button>
+            <Button onClick={handle} disabled={loading || !form.title || !!statusError}>{loading ? 'Сохраняем...' : 'Создать заказ'}</Button>
           </div>
         </div>
       </Modal>

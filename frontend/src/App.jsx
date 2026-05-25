@@ -14,6 +14,7 @@ import ServicesPage from './pages/services/ServicesPage'
 import IncomePage from './pages/IncomePage'
 import LeadsPage from './pages/leads/LeadsPage'
 import FormSettingsPage from './pages/FormSettingsPage'
+import EmailPage from './pages/EmailPage'
 import PublicLeadForm from './pages/PublicLeadForm'
 
 function PrivateRoute({ children }) {
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route path="clients/:id" element={<ClientDetail />} />
         <Route path="services" element={<ServicesPage />} />
         <Route path="income" element={<IncomePage />} />
+        <Route path="email" element={<EmailPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="form-settings" element={<FormSettingsPage />} />
       </Route>

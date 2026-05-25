@@ -1,10 +1,15 @@
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
+from django.shortcuts import get_object_or_404
 from apps.core.mixins import UserScopedMixin
-from .models import Order
-from .serializers import OrderSerializer, OrderListSerializer, OrderChangeLogSerializer
+from .models import Order, OrderAttachment
+from .serializers import (
+    OrderSerializer, OrderListSerializer, OrderChangeLogSerializer,
+    OrderAttachmentSerializer, OrderAttachmentUploadSerializer,
+)
 from .filters import OrderFilter
 
 
@@ -49,3 +54,32 @@ class OrderViewSet(UserScopedMixin, viewsets.ModelViewSet):
         order = self.get_object()
         logs = order.change_logs.select_related('changed_by').all()
         return Response(OrderChangeLogSerializer(logs, many=True).data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='attachments', parser_classes=[MultiPartParser, FormParser, JSONParser])
+    def attachments(self, request, pk=None):
+        order = self.get_object()
+        if request.method == 'GET':
+            qs = order.attachments.select_related('uploaded_by').all()
+            return Response(OrderAttachmentSerializer(qs, many=True, context={'request': request}).data)
+        upload_serializer = OrderAttachmentUploadSerializer(data=request.data)
+        upload_serializer.is_valid(raise_exception=True)
+        uploaded_file = upload_serializer.validated_data['file']
+        attachment = OrderAttachment.objects.create(
+            order=order,
+            file=uploaded_file,
+            original_name=uploaded_file.name,
+            file_size=uploaded_file.size,
+            uploaded_by=request.user,
+        )
+        return Response(
+            OrderAttachmentSerializer(attachment, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['delete'], url_path=r'attachments/(?P<attachment_pk>[^/.]+)')
+    def delete_attachment(self, request, pk=None, attachment_pk=None):
+        order = self.get_object()
+        attachment = get_object_or_404(OrderAttachment, pk=attachment_pk, order=order)
+        attachment.file.delete(save=False)
+        attachment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

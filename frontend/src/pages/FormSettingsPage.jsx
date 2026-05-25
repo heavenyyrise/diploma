@@ -3,6 +3,7 @@ import { formSettings as api, services as servicesApi, clients as clientsApi } f
 import { useAuth } from '../context/AuthContext'
 import { publicFormUrl } from '../utils/publicFormUrl'
 import { Card, PageHeader, Button, Field, inputStyle } from '../components/ui'
+import { sanitizeClientName, getClientNameError } from '../utils/clientName'
 
 const FORM_FIELDS = [
   { key: 'show_lead_source', label: 'Источник клиента',   hint: 'Откуда узнал о вас' },
@@ -165,15 +166,18 @@ function EditableListCard({ title, hint, items, onAdd, onUpdate, onDelete, onTog
   const [editName, setEditName] = useState('')
   const [adding, setAdding] = useState(false)
 
+  const newNameError = getClientNameError(newName, 'Название')
+  const editNameError = getClientNameError(editName, 'Название')
+
   const handleAdd = async () => {
-    if (!newName.trim()) return
+    if (!newName.trim() || newNameError) return
     setAdding(true)
     try { await onAdd(newName.trim()); setNewName('') }
     finally { setAdding(false) }
   }
 
   const handleUpdate = async id => {
-    if (!editName.trim()) return
+    if (!editName.trim() || editNameError) return
     await onUpdate(id, editName.trim())
     setEditId(null)
   }
@@ -188,10 +192,13 @@ function EditableListCard({ title, hint, items, onAdd, onUpdate, onDelete, onTog
           <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: item.is_active ? 'var(--bg)' : '#f4f4f5' }}>
             {editId === item.id ? (
               <>
-                <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter') handleUpdate(item.id); if (e.key === 'Escape') setEditId(null) }}
-                  style={{ ...inputStyle, flex: 1, padding: '4px 8px', fontSize: '0.85rem' }} />
-                <button onClick={() => handleUpdate(item.id)} style={{ color: 'var(--success)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 }}>✓</button>
+                <div style={{ flex: 1 }}>
+                  <input value={editName} onChange={e => setEditName(sanitizeClientName(e.target.value))} autoFocus
+                    onKeyDown={e => { if (e.key === 'Enter') handleUpdate(item.id); if (e.key === 'Escape') setEditId(null) }}
+                    style={{ ...inputStyle, width: '100%', padding: '4px 8px', fontSize: '0.85rem' }} />
+                  {editNameError && <div style={{ fontSize: '0.75rem', color: 'var(--danger, #dc2626)', marginTop: 4 }}>{editNameError}</div>}
+                </div>
+                <button onClick={() => handleUpdate(item.id)} disabled={!!editNameError || !editName.trim()} style={{ color: 'var(--success)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, opacity: editNameError || !editName.trim() ? 0.5 : 1 }}>✓</button>
                 <button onClick={() => setEditId(null)} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
               </>
             ) : (
@@ -211,12 +218,15 @@ function EditableListCard({ title, hint, items, onAdd, onUpdate, onDelete, onTog
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Новый вариант..."
-          onKeyDown={e => e.key === 'Enter' && handleAdd()}
-          style={{ ...inputStyle, flex: 1, padding: '7px 10px', fontSize: '0.85rem' }} />
-        <button onClick={handleAdd} disabled={adding || !newName.trim()}
-          style={{ padding: '7px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'var(--font-body)', opacity: !newName.trim() ? 0.5 : 1 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <input value={newName} onChange={e => setNewName(sanitizeClientName(e.target.value))} placeholder="Новый вариант..."
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            style={{ ...inputStyle, width: '100%', padding: '7px 10px', fontSize: '0.85rem' }} />
+          {newNameError && <div style={{ fontSize: '0.75rem', color: 'var(--danger, #dc2626)', marginTop: 4 }}>{newNameError}</div>}
+        </div>
+        <button onClick={handleAdd} disabled={adding || !newName.trim() || !!newNameError}
+          style={{ padding: '7px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'var(--font-body)', opacity: !newName.trim() || newNameError ? 0.5 : 1 }}>
           + Добавить
         </button>
       </div>

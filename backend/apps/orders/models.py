@@ -84,3 +84,27 @@ class OrderChangeLog(models.Model):
 
     def __str__(self):
         return f'{self.order_id} — {self.field}'
+
+
+class OrderAttachment(models.Model):
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE,
+        related_name='attachments', verbose_name='Заказ',
+    )
+    file = models.FileField(upload_to='orders/%Y/%m/', verbose_name='Файл')
+    original_name = models.CharField(max_length=255, verbose_name='Имя файла')
+    file_size = models.PositiveIntegerField(verbose_name='Размер (байт)')
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name='Загружен')
+    uploaded_by = models.ForeignKey(
+        'users.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='order_attachments',
+        verbose_name='Загрузил',
+    )
+
+    class Meta:
+        verbose_name = 'Вложение заказа'
+        verbose_name_plural = 'Вложения заказов'
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return self.original_name

@@ -36,6 +36,7 @@ export const auth = {
   verifyEmail: token => api.get('/auth/verify-email/', { params: { token } }),
   resendVerification: d => api.post('/auth/resend-verification/', d),
   me: () => api.get('/auth/me/'),
+  updateMe: d => api.patch('/auth/me/', d),
 }
 export const orders = {
   list: p => api.get('/orders/', { params: p }),
@@ -46,6 +47,16 @@ export const orders = {
   stats: () => api.get('/orders/stats/'),
   recent: () => api.get('/orders/recent/'),
   changelog: id => api.get(`/orders/${id}/changelog/`),
+  attachments: id => api.get(`/orders/${id}/attachments/`),
+  uploadAttachment: (id, file) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api.post(`/orders/${id}/attachments/`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  deleteAttachment: (orderId, attachmentId) =>
+    api.delete(`/orders/${orderId}/attachments/${attachmentId}/`),
 }
 export const clients = {
   list: p => api.get('/clients/', { params: p }),
@@ -91,4 +102,27 @@ export const formSettings = {
   get: () => api.get('/form-settings/'),
   update: d => api.patch('/form-settings/', d),
   getPublic: userId => axios.get('/api/form-settings/public/', { params: { user_id: userId } }),
+}
+export const messaging = {
+  templates: {
+    list: () => api.get('/messaging/templates/'),
+    create: d => api.post('/messaging/templates/', d),
+    update: (id, d) => api.patch(`/messaging/templates/${id}/`, d),
+    delete: id => api.delete(`/messaging/templates/${id}/`),
+  },
+  send: data => {
+    if (data.attachments?.length) {
+      const fd = new FormData()
+      fd.append('to_email', data.to_email)
+      fd.append('subject', data.subject)
+      fd.append('body', data.body)
+      if (data.order_id) fd.append('order_id', data.order_id)
+      if (data.client_id) fd.append('client_id', data.client_id)
+      if (data.template_id) fd.append('template_id', data.template_id)
+      data.attachments.forEach(f => fd.append('attachments', f))
+      return api.post('/messaging/send/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    }
+    return api.post('/messaging/send/', data)
+  },
+  sent: p => api.get('/messaging/sent/', { params: p }),
 }

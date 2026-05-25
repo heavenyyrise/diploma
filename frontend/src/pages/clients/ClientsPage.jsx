@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { clients as clientsApi } from '../../api'
 import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, formatDate, formatMoney } from '../../components/ui'
 import ContactsEditor from '../../components/ui/ContactsEditor'
+import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
 
 export default function ClientsPage() {
   const [data, setData] = useState([])
@@ -92,8 +93,10 @@ export function CreateClientModal({ open, onClose, onCreated, leadSources = [], 
     }
   }, [open])
 
+  const nameError = getClientNameError(form.name)
+
   const handle = async () => {
-    if (!form.name) return
+    if (!form.name.trim() || nameError) return
     setLoading(true)
     try {
       const payload = {
@@ -111,7 +114,12 @@ export function CreateClientModal({ open, onClose, onCreated, leadSources = [], 
   return (
     <Modal open={open} onClose={onClose} title="Новый клиент" width={540}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Field label="Имя" required><input style={inputStyle} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Иван Иванов" /></Field>
+        <Field label="Имя" required>
+          <input style={inputStyle} value={form.name} onChange={e => set('name', sanitizeClientName(e.target.value))} placeholder="Иван Иванов" />
+          {nameError && (
+            <div style={{ fontSize: '0.82rem', color: 'var(--danger, #dc2626)', marginTop: 6 }}>{nameError}</div>
+          )}
+        </Field>
 
         <Field label="Источник клиента">
           <select style={inputStyle} value={form.lead_source} onChange={e => set('lead_source', e.target.value)}>
@@ -129,7 +137,7 @@ export function CreateClientModal({ open, onClose, onCreated, leadSources = [], 
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={onClose}>Отмена</Button>
-          <Button onClick={handle} disabled={loading || !form.name}>{loading ? '...' : 'Добавить'}</Button>
+          <Button onClick={handle} disabled={loading || !form.name.trim() || !!nameError}>{loading ? '...' : 'Добавить'}</Button>
         </div>
       </div>
     </Modal>

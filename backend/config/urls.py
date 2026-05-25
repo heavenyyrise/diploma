@@ -15,4 +15,5 @@ urlpatterns = [
     path('api/analytics/', include('apps.analytics.urls')),
     path('api/leads/', include('apps.leads.urls')),
     path('api/form-settings/', include('apps.form_settings.urls')),
+    path('api/messaging/', include('apps.messaging.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
