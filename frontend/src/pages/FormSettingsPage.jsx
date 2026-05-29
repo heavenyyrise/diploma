@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { publicFormUrl } from '../utils/publicFormUrl'
 import { Card, PageHeader, Button, Field, inputStyle } from '../components/ui'
 import { sanitizeClientName, getClientNameError } from '../utils/clientName'
+import { useConfirm } from '../context/ConfirmContext'
 
 const FORM_FIELDS = [
   { key: 'show_lead_source', label: 'Источник клиента',   hint: 'Откуда узнал о вас' },
@@ -50,7 +51,7 @@ export default function FormSettingsPage() {
   if (!settings) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Загрузка...</div>
 
   return (
-    <div style={{ padding: '36px 40px', maxWidth: 1400 }}>
+    <div className="page page-wide">
       <PageHeader
         title="Настройки формы"
         subtitle="Редактируйте публичную форму заявки"
@@ -58,14 +59,16 @@ export default function FormSettingsPage() {
       />
 
       {/* Ссылка */}
-      <Card style={{ padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <Card className="form-link-bar">
         <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', flexShrink: 0 }}>Ссылка на форму:</span>
-        <code style={{ flex: 1, fontSize: '0.85rem', color: 'var(--accent-dark)', background: 'var(--accent-light)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>{formLink}</code>
-        <Button size="sm" variant="secondary" onClick={() => navigator.clipboard?.writeText(formLink)}>Скопировать</Button>
-        <Button size="sm" variant="ghost" onClick={() => window.open(formLink, '_blank')}>Открыть ↗</Button>
+        <code style={{ fontSize: '0.85rem', color: 'var(--accent-dark)', background: 'var(--accent-light)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>{formLink}</code>
+        <div className="form-link-actions">
+          <Button size="sm" variant="secondary" onClick={() => navigator.clipboard?.writeText(formLink)}>Скопировать</Button>
+          <Button size="sm" variant="ghost" onClick={() => window.open(formLink, '_blank')}>Открыть ↗</Button>
+        </div>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="grid-2" style={{ marginBottom: 20 }}>
         {/* Тексты */}
         <Card style={{ padding: 24 }}>
           <SectionLabel>Тексты формы</SectionLabel>
@@ -117,7 +120,7 @@ export default function FormSettingsPage() {
       </div>
 
       {/* Источники и типы контактов */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="grid-2" style={{ marginBottom: 20 }}>
         <EditableListCard
           title="Источники клиентов"
           hint="Варианты ответа на «Откуда вы о нас узнали?»"
@@ -142,7 +145,7 @@ export default function FormSettingsPage() {
       <Card style={{ padding: 24 }}>
         <SectionLabel>Превью</SectionLabel>
         <div style={{ textAlign: 'center', padding: '28px 20px', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px dashed var(--border-strong)' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 500, marginBottom: 10 }}>{settings.title || 'Заголовок формы'}</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)', marginBottom: 10 }}>{settings.title || 'Заголовок формы'}</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, maxWidth: 480, margin: '0 auto 20px' }}>{settings.subtitle || 'Подзаголовок'}</p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
             <span style={{ fontSize: '0.75rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '3px 10px', borderRadius: 20 }}>Имя *</span>
@@ -165,6 +168,7 @@ function EditableListCard({ title, hint, items, onAdd, onUpdate, onDelete, onTog
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
   const [adding, setAdding] = useState(false)
+  const confirm = useConfirm()
 
   const newNameError = getClientNameError(newName, 'Название')
   const editNameError = getClientNameError(editName, 'Название')
@@ -210,7 +214,10 @@ function EditableListCard({ title, hint, items, onAdd, onUpdate, onDelete, onTog
                 </button>
                 <button onClick={() => { setEditId(item.id); setEditName(item.name) }}
                   style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>✏️</button>
-                <button onClick={() => { if (confirm(`Удалить "${item.name}"?`)) onDelete(item.id) }}
+                <button onClick={async () => {
+                  if (!await confirm(`Удалить «${item.name}»?`)) return
+                  onDelete(item.id)
+                }}
                   style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>✕</button>
               </>
             )}

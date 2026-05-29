@@ -13,7 +13,7 @@ export default function TemplateEditor({ template, onChange, onSave, onDelete, s
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '24px' }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 500, marginBottom: 20 }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 'var(--font-display-weight)', marginBottom: 20 }}>
         {isNew ? 'Новый шаблон' : 'Редактирование шаблона'}
       </h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>

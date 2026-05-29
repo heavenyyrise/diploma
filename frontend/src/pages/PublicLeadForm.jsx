@@ -67,7 +67,7 @@ export default function PublicLeadForm() {
   if (loadError) return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 500, marginBottom: 12 }}>Форма недоступна</h1>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 'var(--font-display-weight)', marginBottom: 12 }}>Форма недоступна</h1>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '0.95rem' }}>{loadError}</p>
       </div>
     </div>
@@ -83,7 +83,7 @@ export default function PublicLeadForm() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
         <div style={{ fontSize: '3.5rem', marginBottom: 20 }}>✉️</div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 500, marginBottom: 12 }}>Заявка отправлена!</h1>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 'var(--font-display-weight)', marginBottom: 12 }}>Заявка отправлена!</h1>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '0.95rem' }}>{cfg.success_message}</p>
       </div>
     </div>
@@ -96,15 +96,15 @@ export default function PublicLeadForm() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ background: 'var(--bg-sidebar)', padding: '20px 40px' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: '#fff', fontWeight: 500 }}>Freelancer ARM</div>
+      <div className="public-form-header">
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: '#fff', fontWeight: 'var(--font-display-weight)' }}>Freelancer ARM</div>
         <div style={{ fontSize: '0.72rem', color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500 }}>Форма заявки</div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '48px 24px' }}>
+      <div className="public-form-body">
         <div style={{ width: '100%', maxWidth: 560 }}>
           <div style={{ marginBottom: 36, textAlign: 'center' }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 500, marginBottom: 10 }}>{cfg.title}</h1>
+            <h1 className="public-form-title" style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--font-display-weight)', marginBottom: 10 }}>{cfg.title}</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7 }}>{cfg.subtitle}</p>
           </div>
 
@@ -112,7 +112,7 @@ export default function PublicLeadForm() {
             <div style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
 
               {/* Контактная информация */}
-              <div style={{ padding: '28px 28px 24px' }}>
+              <div className="public-form-section" style={{ padding: '28px 28px 24px' }}>
                 <SLabel>Контактная информация</SLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <FField label="Ваше имя / название организации" required>
@@ -121,7 +121,7 @@ export default function PublicLeadForm() {
                   </FField>
 
                   <FField label="Контакт для связи" required hint="Выберите тип и введите значение">
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div className="public-contact-row" style={{ display: 'flex', gap: 8 }}>
                       {cfg.contact_types?.length > 0 && (
                         <select value={form.contact_type} onChange={e => set('contact_type', Number(e.target.value))}
                           style={{ ...selectStyle, width: 148, flexShrink: 0 }}>
@@ -148,8 +148,8 @@ export default function PublicLeadForm() {
               {/* О проекте */}
               {hasProjectBlock && (
                 <>
-                  <div style={{ margin: '0 28px', borderTop: '1px solid var(--border)' }} />
-                  <div style={{ padding: '24px 28px 28px' }}>
+                  <div className="public-form-inner" style={{ margin: '0 28px', borderTop: '1px solid var(--border)' }} />
+                  <div className="public-form-section-lg" style={{ padding: '24px 28px 28px' }}>
                     <SLabel>О проекте</SLabel>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -196,7 +196,7 @@ export default function PublicLeadForm() {
                       )}
 
                       {(cfg.show_budget || cfg.show_deadline) && (
-                        <div style={{ display: 'grid', gridTemplateColumns: cfg.show_budget && cfg.show_deadline ? '1fr 1fr' : '1fr', gap: 14 }}>
+                        <div className="grid-form-2" style={{ gridTemplateColumns: cfg.show_budget && cfg.show_deadline ? '1fr 1fr' : '1fr', gap: 14 }}>
                           {cfg.show_budget && (
                             <FField label="Бюджет (BYN)" hint="Приблизительно">
                               <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)}

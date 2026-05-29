@@ -39,14 +39,14 @@ export default function ClientsPage() {
   ]
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="page">
       <PageHeader title="Клиенты" subtitle="Ваши заказчики" action={<Button onClick={() => setShowCreate(true)}>+ Новый клиент</Button>} />
       <Card style={{ padding: '16px 20px', marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="filter-bar">
           {[
             {
               label: 'Поиск',
-              el: <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Имя, контакт..." style={{ ...inputStyle, width: 200 }} />,
+              el: <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Имя, контакт..." style={inputStyle} />,
             },
             {
               label: 'Доход от клиента',
@@ -54,7 +54,7 @@ export default function ClientsPage() {
                 <select
                   value={incomeSort}
                   onChange={e => setIncomeSort(e.target.value)}
-                  style={{ ...inputStyle, width: 160, cursor: 'pointer' }}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
                 >
                   <option value="">Все</option>
                   <option value="-income_total">По убыванию</option>
@@ -63,7 +63,7 @@ export default function ClientsPage() {
               ),
             },
           ].map(({ label, el }) => (
-            <div key={label}>
+            <div key={label} className="filter-field">
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
               {el}
             </div>

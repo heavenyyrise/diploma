@@ -1,6 +1,6 @@
-export function Card({ children, style, onClick }) {
+export function Card({ children, style, onClick, className }) {
   return (
-    <div onClick={onClick} style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', ...style, ...(onClick ? { cursor: 'pointer' } : {}) }}>
+    <div onClick={onClick} className={className} style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', ...style, ...(onClick ? { cursor: 'pointer' } : {}) }}>
       {children}
     </div>
   )
@@ -8,12 +8,12 @@ export function Card({ children, style, onClick }) {
 
 export function PageHeader({ title, subtitle, action }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 28 }}>
+    <div className="page-header">
       <div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.2 }}>{title}</h1>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)', color: 'var(--text-primary)', lineHeight: 1.2 }}>{title}</h1>
         {subtitle && <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: 4 }}>{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="page-header-action">{action}</div>}
     </div>
   )
 }
@@ -51,13 +51,49 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
   return <button type={type} onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>{children}</button>
 }
 
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = 'Удалить',
+  cancelLabel = 'Отмена',
+  onConfirm,
+  onCancel,
+}) {
+  if (!open) return null
+  return (
+    <div
+      onClick={onCancel}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(28,25,23,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow-lg)', padding: '24px' }}
+      >
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 'var(--font-display-weight)', marginBottom: message ? 8 : 20 }}>
+          {title}
+        </h2>
+        {message && (
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
+            {message}
+          </p>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <Button variant="ghost" onClick={onCancel}>{cancelLabel}</Button>
+          <Button variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Modal({ open, onClose, title, children, width = 520 }) {
   if (!open) return null
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(28,25,23,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: width, maxHeight: '90vh', overflow: 'auto', boxShadow: 'var(--shadow-lg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 500 }}>{title}</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 'var(--font-display-weight)' }}>{title}</h2>
           <button onClick={onClose} style={{ color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1 }}>×</button>
         </div>
         <div style={{ padding: '24px' }}>{children}</div>
@@ -83,7 +119,7 @@ export function EmptyState({ icon, title, subtitle, action }) {
   return (
     <div style={{ textAlign: 'center', padding: '64px 24px' }}>
       <div style={{ fontSize: '2.5rem', marginBottom: 12, opacity: 0.4 }}>{icon}</div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: 6 }}>{title}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 'var(--font-display-weight)', color: 'var(--text-secondary)', marginBottom: 6 }}>{title}</div>
       {subtitle && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>{subtitle}</div>}
       {action}
     </div>
@@ -94,7 +130,7 @@ export function StatCard({ label, value, sub, color }) {
   return (
     <Card style={{ padding: '20px 24px' }}>
       <div style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.9rem', fontWeight: 500, color: color || 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.9rem', fontWeight: 'var(--font-display-weight)', color: color || 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>}
     </Card>
   )

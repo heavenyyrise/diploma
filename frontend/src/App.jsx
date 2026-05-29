@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ConfirmProvider } from './context/ConfirmContext'
 import { LeadsProvider } from './context/LeadsContext'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
@@ -47,5 +48,13 @@ function AppRoutes() {
 }
 
 export default function App() {
-  return <BrowserRouter><AuthProvider><AppRoutes /></AuthProvider></BrowserRouter>
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <ConfirmProvider>
+          <AppRoutes />
+        </ConfirmProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  )
 }

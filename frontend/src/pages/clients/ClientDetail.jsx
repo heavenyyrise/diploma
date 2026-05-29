@@ -6,10 +6,12 @@ import ContactsEditor from '../../components/ui/ContactsEditor'
 import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
 import { findClientEmail } from '../../components/messaging/utils'
 import EmailHistoryBlock from '../../components/messaging/EmailHistoryBlock'
+import { useConfirm } from '../../context/ConfirmContext'
 
 export default function ClientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const [client, setClient] = useState(null)
   const [orders, setOrders] = useState([])
   const [editing, setEditing] = useState(false)
@@ -75,12 +77,12 @@ export default function ClientDetail() {
   }
 
   const del = async () => {
-    if (!confirm('Удалить клиента?')) return
+    if (!await confirm('Удалить клиента?')) return
     await clientsApi.delete(id)
     navigate('/clients')
   }
 
-  if (!client) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Загрузка...</div>
+  if (!client) return <div className="page" style={{ color: 'var(--text-muted)' }}>Загрузка...</div>
 
   const writeToClient = () => {
     navigate('/email', {
@@ -94,16 +96,16 @@ export default function ClientDetail() {
   }
 
   return (
-    <div style={{ padding: '36px 40px', maxWidth: 1400 }}>
+    <div className="page page-wide">
       <button onClick={() => navigate('/clients')} style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none' }}>← Назад к клиентам</button>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div className="detail-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', fontWeight: 600, color: '#fff' }}>
             {client.name[0].toUpperCase()}
           </div>
           <div>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 500 }}>{client.name}</h1>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 'var(--font-display-weight)' }}>{client.name}</h1>
             <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
               {client.lead_source_name && (
                 <span style={{ fontSize: '0.75rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '2px 8px', borderRadius: 20 }}>
@@ -116,7 +118,7 @@ export default function ClientDetail() {
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="actions-row">
           {!editing && (
             <Button variant="secondary" onClick={writeToClient}>Написать клиенту</Button>
           )}
@@ -127,20 +129,20 @@ export default function ClientDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="grid-stats-3" style={{ marginBottom: 24 }}>
         {[['Всего заказов', client.total_orders], ['Активных', client.active_orders], ['Принёс дохода', formatMoney(client.total_income)]].map(([label, value]) => (
           <Card key={label} style={{ padding: '16px 20px' }}>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem' }}>{value}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 'var(--font-display-weight)' }}>{value}</div>
           </Card>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 20 }}>
+      <div className="grid-detail">
         {/* Заказы */}
         <Card>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 500 }}>История заказов</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 'var(--font-display-weight)' }}>История заказов</h3>
           </div>
           {orders.length === 0
             ? <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Заказов нет</div>

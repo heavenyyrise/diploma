@@ -13,7 +13,7 @@ export default function SentEmailPreview({ email, onReply }) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16,
       }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 500, marginBottom: 8 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 'var(--font-display-weight)', marginBottom: 8 }}>
             {email.subject}
           </h2>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>

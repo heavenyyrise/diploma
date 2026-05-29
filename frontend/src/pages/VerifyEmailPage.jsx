@@ -29,17 +29,17 @@ export default function VerifyEmailPage() {
   }, [searchParams])
 
   return (
-    <div style={authPageLayout.page}>
+    <div {...authPageLayout.page}>
       <AuthBrandPanel />
-      <div style={authPageLayout.formSide}>
-        <div style={authPageLayout.formWrap}>
+      <div {...authPageLayout.formSide}>
+        <div {...authPageLayout.formWrap}>
           {status === 'loading' && (
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Подтверждаем email...</p>
           )}
           {status === 'success' && (
             <>
               <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>✓</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 500, marginBottom: 8, color: 'var(--success)' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)', marginBottom: 8, color: 'var(--success)' }}>
                 Email подтверждён
               </div>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: 24 }}>{message}</p>
@@ -51,7 +51,7 @@ export default function VerifyEmailPage() {
           {status === 'error' && (
             <>
               <div style={{ fontSize: '2.5rem', marginBottom: 16 }}>✕</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 500, marginBottom: 8, color: 'var(--danger)' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)', marginBottom: 8, color: 'var(--danger)' }}>
                 Ошибка
               </div>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: 24 }}>{message}</p>

@@ -64,24 +64,24 @@ export default function OrdersPage() {
   ]
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="page">
       <PageHeader title="Заказы" subtitle="Все ваши проекты" action={<Button onClick={() => setShowCreate(true)}>+ Новый заказ</Button>} />
 
       <Card style={{ padding: '16px 20px', marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="filter-bar">
           {[
-            { label: 'Поиск', el: <input value={filters.search} onChange={e => setFilter('search', e.target.value)} placeholder="Название, клиент..." style={{ ...inputStyle, width: 200 }} /> },
-            { label: 'Статус', el: <select value={filters.status} onChange={e => setFilter('status', e.target.value)} style={{ ...inputStyle, width: 150 }}>{STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select> },
+            { label: 'Поиск', el: <input value={filters.search} onChange={e => setFilter('search', e.target.value)} placeholder="Название, клиент..." style={inputStyle} /> },
+            { label: 'Статус', el: <select value={filters.status} onChange={e => setFilter('status', e.target.value)} style={inputStyle}>{STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select> },
             { label: 'Источник клиента', el: (
-              <select value={filters.lead_source} onChange={e => setFilter('lead_source', e.target.value)} style={{ ...inputStyle, width: 160 }}>
+              <select value={filters.lead_source} onChange={e => setFilter('lead_source', e.target.value)} style={inputStyle}>
                 <option value="">Все источники</option>
                 {leadSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )},
-            { label: 'Дедлайн от', el: <input type="date" value={filters.deadline_from} onChange={e => setFilter('deadline_from', e.target.value)} style={{ ...inputStyle, width: 150 }} /> },
-            { label: 'Дедлайн до', el: <input type="date" value={filters.deadline_to} onChange={e => setFilter('deadline_to', e.target.value)} style={{ ...inputStyle, width: 150 }} /> },
+            { label: 'Дедлайн от', el: <input type="date" value={filters.deadline_from} onChange={e => setFilter('deadline_from', e.target.value)} style={inputStyle} /> },
+            { label: 'Дедлайн до', el: <input type="date" value={filters.deadline_to} onChange={e => setFilter('deadline_to', e.target.value)} style={inputStyle} /> },
           ].map(({ label, el }) => (
-            <div key={label}>
+            <div key={label} className="filter-field">
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
               {el}
             </div>
@@ -201,7 +201,7 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
             </Field>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-form-2">
             <Field label="Статус">
               <select style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
                 <option value="in_progress">В работе</option>

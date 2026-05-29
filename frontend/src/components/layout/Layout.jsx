@@ -1,4 +1,5 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useLeads } from '../../context/LeadsContext'
 import LeadToast from '../ui/LeadToast'
@@ -18,16 +19,45 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const { newCount } = useLeads()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => { setSidebarOpen(false) }, [location.pathname])
+
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [sidebarOpen])
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside style={{ width: 'var(--sidebar-width)', background: 'var(--bg-sidebar)', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 100 }}>
-        <div style={{ padding: '28px 20px 24px', borderBottom: '1px solid #292524' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 500, color: '#fff' }}>Freelancer</div>
+    <div className="app-layout">
+      <header className="app-mobile-header">
+        <button type="button" className="app-menu-btn" onClick={() => setSidebarOpen(v => !v)} aria-label="Меню">
+          {sidebarOpen ? <CloseIcon /> : <MenuIcon />}
+        </button>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 'var(--font-display-weight)', color: '#fff' }}>
+          Freelancer <span style={{ color: 'var(--accent)', fontSize: '0.72rem', letterSpacing: '0.08em' }}>ARM</span>
+        </div>
+      </header>
+
+      <div
+        className={`app-sidebar-overlay${sidebarOpen ? ' is-visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
+      <aside className={`app-sidebar${sidebarOpen ? ' is-open' : ''}`}>
+        <div style={{ padding: '28px 20px 24px', borderBottom: '1px solid var(--border-sidebar)' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', fontWeight: 'var(--font-display-weight)', color: '#fff' }}>Freelancer</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: 2, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500 }}>ARM</div>
         </div>
 
-        <nav style={{ flex: 1, padding: '16px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav style={{ flex: 1, padding: '16px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
           {NAV.map(item => (
             <NavLink key={item.to} to={item.to} end={item.exact}
               style={({ isActive }) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.875rem', fontWeight: isActive ? 500 : 400, color: isActive ? '#fff' : 'var(--text-sidebar)', background: isActive ? 'var(--bg-sidebar-active)' : 'transparent', textDecoration: 'none' })}>
@@ -46,7 +76,7 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div style={{ padding: '16px', borderTop: '1px solid #292524' }}>
+        <div style={{ padding: '16px', borderTop: '1px solid var(--border-sidebar)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 600, color: '#fff', flexShrink: 0 }}>
               {(user?.first_name?.[0] || user?.username?.[0] || '?').toUpperCase()}
@@ -56,17 +86,33 @@ export default function Layout() {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Фрилансер</div>
             </div>
           </div>
-          <button onClick={() => { logout(); navigate('/login') }} style={{ width: '100%', padding: '7px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-muted)', background: 'transparent', border: '1px solid #292524', cursor: 'pointer', textAlign: 'left' }}>
+          <button onClick={handleLogout} style={{ width: '100%', padding: '7px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'var(--text-muted)', background: 'transparent', border: '1px solid var(--border-sidebar)', cursor: 'pointer', textAlign: 'left' }}>
             Выйти
           </button>
         </div>
       </aside>
 
-      <main style={{ marginLeft: 'var(--sidebar-width)', flex: 1, minHeight: '100vh', background: 'var(--bg)' }}>
+      <main className="app-main">
         <Outlet />
       </main>
       <LeadToast />
     </div>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
   )
 }
 

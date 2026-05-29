@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { leads as leadsApi, clients as clientsApi, services as servicesApi, orders as ordersApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 import { publicFormUrl } from '../../utils/publicFormUrl'
@@ -29,10 +29,17 @@ export default function LeadsPage() {
   const [orderData, setOrderData] = useState(null)
   const [clientsList, setClientsList] = useState([])
   const [servicesList, setServicesList] = useState([])
+  const initialLoadDone = useRef(false)
 
-  const load = useCallback(() => {
-    setLoading(true)
-    leadsApi.list(filter ? { status: filter } : {}).then(r => setData(r.data.results || r.data)).finally(() => setLoading(false))
+  const load = useCallback(({ silent = false } = {}) => {
+    const showLoading = !silent && !initialLoadDone.current
+    if (showLoading) setLoading(true)
+    return leadsApi.list(filter ? { status: filter } : {})
+      .then(r => setData(r.data.results || r.data))
+      .finally(() => {
+        if (showLoading) setLoading(false)
+        initialLoadDone.current = true
+      })
   }, [filter])
 
   useEffect(() => { load() }, [load])
@@ -43,7 +50,7 @@ export default function LeadsPage() {
 
   const accept = async lead => {
     const r = await leadsApi.accept(lead.id)
-    load()
+    await load({ silent: true })
     clientsApi.list().then(res => setClientsList(res.data.results || res.data))
     setSelected(null)
     const firstService = lead.services_detail?.[0]
@@ -60,24 +67,28 @@ export default function LeadsPage() {
     setShowOrderModal(true)
   }
 
-  const reject = async id => { await leadsApi.reject(id); load(); setSelected(null) }
+  const reject = async id => {
+    await leadsApi.reject(id)
+    await load({ silent: true })
+    setSelected(null)
+  }
 
   const discuss = async lead => {
     await leadsApi.update(lead.id, { status: 'in_discussion' })
-    load()
+    await load({ silent: true })
     setSelected(null)
   }
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="page">
       <PageHeader
         title="Заявки"
         subtitle="Входящие заявки с формы"
         action={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ссылка:</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="hide-mobile" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ссылка:</span>
             <code onClick={() => navigator.clipboard?.writeText(formLink)}
-              style={{ fontSize: '0.8rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'monospace' }}
+              style={{ fontSize: '0.8rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontFamily: 'monospace', wordBreak: 'break-all' }}
               title="Скопировать">
               {formLink}
             </code>
@@ -85,7 +96,7 @@ export default function LeadsPage() {
         }
       />
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+      <div className="filter-tabs">
         {[
           ['', 'Все'],
           ['new', 'Новые'],
@@ -105,8 +116,7 @@ export default function LeadsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {data.map(lead => (
-          <Card key={lead.id} onClick={() => setSelected(lead)}
-            style={{ padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}>
+          <Card key={lead.id} onClick={() => setSelected(lead)} className="lead-card">
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[lead.status], flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 500, fontSize: '0.9rem', marginBottom: 3 }}>{lead.name}</div>
@@ -118,12 +128,12 @@ export default function LeadsPage() {
               </div>
             </div>
             {lead.description && (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div className="lead-card-desc" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {lead.description}
               </div>
             )}
             <Badge status={lead.status} label={STATUS_LABELS[lead.status]} />
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(lead.created_at)}</div>
+            <div className="list-row-meta hide-sm">{formatDate(lead.created_at)}</div>
           </Card>
         ))}
       </div>
@@ -135,7 +145,7 @@ export default function LeadsPage() {
           onAccept={() => accept(selected)}
           onReject={() => reject(selected.id)}
           onDiscuss={() => discuss(selected)}
-          onUpdated={() => { load(); setSelected(null) }}
+          onUpdated={async () => { await load({ silent: true }); setSelected(null) }}
         />
       )}
 
@@ -201,7 +211,7 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
           <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Название</label>
           <input style={inputStyle} value={form.title} onChange={e => set('title', e.target.value)} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-form-2">
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Клиент</label>
             <select style={inputStyle} value={form.client} onChange={e => set('client', e.target.value)}>
@@ -242,7 +252,7 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-form-2">
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Сумма (BYN)</label>
             <input type="number" style={inputStyle} value={form.price} onChange={e => { setPriceManuallyEdited(true); set('price', e.target.value) }} placeholder="0" />
@@ -280,7 +290,7 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdat
   return (
     <Modal open onClose={onClose} title={`Заявка от ${lead.name}`} width={560}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, background: 'var(--bg)', borderRadius: 'var(--radius)', padding: 16 }}>
+        <div className="grid-form-2" style={{ gap: 16, background: 'var(--bg)', borderRadius: 'var(--radius)', padding: 16 }}>
           {[
             ['Имя', lead.name],
             lead.contact_type_detail && ['Контакт', `${lead.contact_type_detail.name}: ${lead.contact_value}`],

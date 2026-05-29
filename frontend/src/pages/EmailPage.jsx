@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { auth, messaging as messagingApi } from '../api'
-import { Button } from '../components/ui'
+import { Button, Card } from '../components/ui'
 import EmailNavSidebar from '../components/messaging/EmailNavSidebar'
 import ComposeEmailForm from '../components/messaging/ComposeEmailForm'
 import SentEmailPreview from '../components/messaging/SentEmailPreview'
 import TemplateEditor from '../components/messaging/TemplateEditor'
 import { formatEmailDate, getInitials, EMPTY_RECIPIENT } from '../components/messaging/utils'
+import { useMediaQuery } from '../utils/useMediaQuery'
+import { useConfirm } from '../context/ConfirmContext'
 
 const EMPTY_TEMPLATE = { id: null, name: '', subject: '', body: '' }
 
 export default function EmailPage() {
   const location = useLocation()
+  const confirm = useConfirm()
   const [activeTab, setActiveTab] = useState('sent')
   const [replyTo, setReplyTo] = useState('')
   const [savingReply, setSavingReply] = useState(false)
@@ -26,6 +29,8 @@ export default function EmailPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(null)
   const [templateDraft, setTemplateDraft] = useState(null)
   const [savingTemplate, setSavingTemplate] = useState(false)
+  const [mobilePanel, setMobilePanel] = useState('list')
+  const isCompact = useMediaQuery('(max-width: 768px)')
 
   const selectedEmail = sentEmails.find(e => e.id === selectedEmailId) || null
 
@@ -63,6 +68,7 @@ export default function EmailPage() {
     }
     if (state.orderId) setComposeOrderId(state.orderId)
     setComposeKey(k => k + 1)
+    setMobilePanel('content')
     window.history.replaceState({}, document.title)
   }, [location.state])
 
@@ -79,6 +85,7 @@ export default function EmailPage() {
 
   const handleTabChange = tab => {
     setActiveTab(tab)
+    setMobilePanel('list')
     if (tab === 'sent') {
       setSelectedTemplate(null)
       setTemplateDraft(null)
@@ -94,6 +101,7 @@ export default function EmailPage() {
     setComposeOrderId(null)
     setComposeClientId(null)
     setComposeKey(k => k + 1)
+    if (isCompact) setMobilePanel('list')
   }
 
   const handleReply = email => {
@@ -107,16 +115,38 @@ export default function EmailPage() {
     setComposeClientId(email.client || null)
     setComposeOrderId(email.order || null)
     setComposeKey(k => k + 1)
+    setMobilePanel('content')
   }
 
-  const newTemplate = () => {
-    setSelectedTemplate('new')
-    setTemplateDraft({ ...EMPTY_TEMPLATE })
+  const selectEmail = id => {
+    setSelectedEmailId(id)
+    setMobilePanel('content')
+  }
+
+  const openCompose = () => {
+    setSelectedEmailId(null)
+    setMobilePanel('content')
+  }
+
+  const backToList = () => {
+    setMobilePanel('list')
+    if (activeTab === 'sent') setSelectedEmailId(null)
+    if (activeTab === 'templates') {
+      setSelectedTemplate(null)
+      setTemplateDraft(null)
+    }
   }
 
   const selectTemplate = tpl => {
     setSelectedTemplate(tpl.id)
     setTemplateDraft({ id: tpl.id, name: tpl.name, subject: tpl.subject, body: tpl.body })
+    setMobilePanel('content')
+  }
+
+  const newTemplate = () => {
+    setSelectedTemplate('new')
+    setTemplateDraft({ ...EMPTY_TEMPLATE })
+    setMobilePanel('content')
   }
 
   const saveTemplate = async () => {
@@ -138,7 +168,7 @@ export default function EmailPage() {
 
   const deleteTemplate = async () => {
     if (!templateDraft?.id) return
-    if (!confirm('Удалить шаблон?')) return
+    if (!await confirm('Удалить шаблон?')) return
     await messagingApi.templates.delete(templateDraft.id)
     loadTemplates()
     setSelectedTemplate(null)
@@ -149,39 +179,33 @@ export default function EmailPage() {
     ? (selectedEmailId ? 'preview' : 'compose')
     : 'template'
 
-  return (
-    <div style={{
-      display: 'flex',
-      height: '100vh',
-      width: '100%',
-      overflow: 'hidden',
-      background: 'var(--bg)',
-    }}>
-      <EmailNavSidebar
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        replyTo={replyTo}
-        onReplyToChange={setReplyTo}
-        onSaveReplyTo={saveReplyTo}
-        savingReply={savingReply}
-        replySaved={replySaved}
-      />
+  const showList = !isCompact || mobilePanel === 'list'
+  const showContent = !isCompact || mobilePanel === 'content'
 
-      <div style={{
-        width: 320, flexShrink: 0, borderRight: '1px solid var(--border)',
-        background: 'var(--bg-card)', display: 'flex', flexDirection: 'column',
-        minHeight: 0, overflow: 'hidden',
-      }}>
-        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+  return (
+    <div className="page page-wide email-shell">
+      <Card className="email-card" style={{ boxShadow: 'var(--shadow-sm)', borderRadius: 'var(--radius-lg)' }}>
+        <EmailNavSidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          replyTo={replyTo}
+          onReplyToChange={setReplyTo}
+          onSaveReplyTo={saveReplyTo}
+          savingReply={savingReply}
+          replySaved={replySaved}
+        />
+
+        <div className={`email-list-panel${showList ? '' : ' is-hidden'}`}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>
             {activeTab === 'sent' ? 'Отправленные' : 'Шаблоны'}
           </span>
-          {activeTab === 'sent' && selectedEmailId && (
-            <button type="button" onClick={() => setSelectedEmailId(null)} style={{
+          {activeTab === 'sent' && (
+            <button type="button" onClick={openCompose} style={{
               background: 'none', border: 'none', cursor: 'pointer',
               fontSize: '0.78rem', color: 'var(--accent)', fontFamily: 'var(--font-body)',
             }}>
-              Новое письмо
+              {selectedEmailId && !isCompact ? 'Новое письмо' : 'Написать'}
             </button>
           )}
         </div>
@@ -194,7 +218,7 @@ export default function EmailPage() {
                 <button
                   key={e.id}
                   type="button"
-                  onClick={() => setSelectedEmailId(e.id)}
+                  onClick={() => selectEmail(e.id)}
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '14px 16px',
                     border: 'none', cursor: 'pointer', fontFamily: 'var(--font-body)',
@@ -244,37 +268,45 @@ export default function EmailPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, minWidth: 0, background: 'var(--bg-card)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {rightPanelMode === 'compose' && (
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <ComposeEmailForm
-              key={composeKey}
-              recipient={composeRecipient}
-              orderId={composeOrderId}
-              clientId={composeClientId}
-              templates={templates}
-              onSent={handleEmailSent}
-            />
-          </div>
-        )}
-        {rightPanelMode === 'preview' && (
-          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-            <SentEmailPreview email={selectedEmail} onReply={handleReply} />
-          </div>
-        )}
-        {rightPanelMode === 'template' && (
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            <TemplateEditor
-              template={templateDraft}
-              onChange={setTemplateDraft}
-              onSave={saveTemplate}
-              onDelete={deleteTemplate}
-              saving={savingTemplate}
-              isNew={selectedTemplate === 'new'}
-            />
-          </div>
-        )}
-      </div>
+        <div className={`email-content-panel${showContent ? '' : ' is-hidden'}`}>
+          {isCompact && (
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <button type="button" className="mobile-back-btn" onClick={backToList} style={{ marginBottom: 0 }}>
+                ← Назад к списку
+              </button>
+            </div>
+          )}
+          {rightPanelMode === 'compose' && (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <ComposeEmailForm
+                key={composeKey}
+                recipient={composeRecipient}
+                orderId={composeOrderId}
+                clientId={composeClientId}
+                templates={templates}
+                onSent={handleEmailSent}
+              />
+            </div>
+          )}
+          {rightPanelMode === 'preview' && (
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <SentEmailPreview email={selectedEmail} onReply={handleReply} />
+            </div>
+          )}
+          {rightPanelMode === 'template' && (
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+              <TemplateEditor
+                template={templateDraft}
+                onChange={setTemplateDraft}
+                onSave={saveTemplate}
+                onDelete={deleteTemplate}
+                saving={savingTemplate}
+                isNew={selectedTemplate === 'new'}
+              />
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }

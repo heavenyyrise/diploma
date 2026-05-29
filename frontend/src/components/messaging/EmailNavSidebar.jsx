@@ -7,14 +7,10 @@ export default function EmailNavSidebar({ activeTab, onTabChange, replyTo, onRep
   ]
 
   return (
-    <aside style={{
-      width: 280, flexShrink: 0, borderRight: '1px solid var(--border)',
-      background: 'var(--bg-card)', display: 'flex', flexDirection: 'column',
-      overflowY: 'auto', minHeight: 0,
-    }}>
-      <div style={{ padding: '20px 16px 12px' }}>
+    <aside className="email-nav">
+      <div style={{ padding: '20px 16px 12px', flexShrink: 0 }}>
         <h1 style={{
-          fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 500,
+          fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 'var(--font-display-weight)',
           marginBottom: 16, color: 'var(--text-primary)',
         }}>
           Почта
@@ -40,7 +36,7 @@ export default function EmailNavSidebar({ activeTab, onTabChange, replyTo, onRep
         </nav>
       </div>
 
-      <div style={{ padding: '16px', borderTop: '1px solid var(--border)', marginTop: 8 }}>
+      <div className="email-nav-reply" style={{ padding: '16px', borderTop: '1px solid var(--border)', marginTop: 'auto', flexShrink: 0 }}>
         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 500, lineHeight: 1.4 }}>
           Ответить на email
         </div>

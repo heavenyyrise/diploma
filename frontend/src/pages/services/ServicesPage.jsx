@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { services as servicesApi } from '../../api'
 import { Card, PageHeader, Button, Modal, Field, inputStyle, Badge, formatMoney, formatDate, EmptyState } from '../../components/ui'
 import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
+import { useConfirm } from '../../context/ConfirmContext'
 
 export default function ServicesPage() {
   const [data, setData] = useState([])
@@ -25,25 +26,25 @@ export default function ServicesPage() {
   }
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="page">
       <PageHeader title="Услуги" subtitle="Ваши предложения" action={<Button onClick={() => setShowCreate(true)}>+ Новая услуга</Button>} />
       {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>}
       {!loading && data.length === 0 && <EmptyState icon="⭐" title="Услуг нет" subtitle="Добавьте ваши услуги" action={<Button onClick={() => setShowCreate(true)}>+ Новая услуга</Button>} />}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {data.map(service => (
           <Card key={service.id}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 24px', cursor: 'pointer' }} onClick={() => toggleExpand(service.id)}>
+            <div className="service-row" onClick={() => toggleExpand(service.id)}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontWeight: 500, fontSize: '0.95rem' }}>{service.name}</span>
                   {!service.is_active && <span style={{ fontSize: '0.7rem', background: '#f4f4f5', color: '#71717a', padding: '2px 8px', borderRadius: 20 }}>Неактивна</span>}
                 </div>
-                {service.description && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 500 }}>{service.description}</p>}
+                {service.description && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{service.description}</p>}
               </div>
-              <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+              <div className="service-row-stats">
                 {service.price && <div style={{ textAlign: 'right' }}><div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Базовая цена</div><div style={{ fontWeight: 600, color: 'var(--accent)', fontSize: '0.95rem' }}>{formatMoney(service.price)}</div></div>}
-                <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>В работе</div><div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: service.active_orders_count > 0 ? 'var(--info)' : 'var(--text-muted)' }}>{service.active_orders_count}</div></div>
-                <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Всего</div><div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem' }}>{service.total_orders_count}</div></div>
+                <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>В работе</div><div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 'var(--font-display-weight)', color: service.active_orders_count > 0 ? 'var(--info)' : 'var(--text-muted)' }}>{service.active_orders_count}</div></div>
+                <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Всего</div><div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 'var(--font-display-weight)' }}>{service.total_orders_count}</div></div>
                 <span style={{ color: 'var(--text-muted)', fontSize: '1rem', display: 'inline-block', transform: expanded === service.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
               </div>
             </div>
@@ -78,8 +79,9 @@ function ServiceEditInline({ service, onUpdated }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(service)
   const [saving, setSaving] = useState(false)
+  const confirm = useConfirm()
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
-  const del = async () => { if (!confirm('Удалить услугу?')) return; await servicesApi.delete(service.id); onUpdated() }
+  const del = async () => { if (!await confirm('Удалить услугу?')) return; await servicesApi.delete(service.id); onUpdated() }
   const nameError = getClientNameError(form.name, 'Название')
   const save = async () => {
     if (nameError || !form.name?.trim()) return
@@ -89,7 +91,7 @@ function ServiceEditInline({ service, onUpdated }) {
   if (!editing) return <><Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Редактировать</Button><Button size="sm" variant="danger" onClick={del}>Удалить</Button></>
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'end' }} className="grid-form-2 service-edit-grid">
         <Field label="Название">
           <input style={inputStyle} value={form.name} onChange={e => set('name', sanitizeClientName(e.target.value))} />
           {nameError && <div style={{ fontSize: '0.82rem', color: 'var(--danger, #dc2626)', marginTop: 6 }}>{nameError}</div>}

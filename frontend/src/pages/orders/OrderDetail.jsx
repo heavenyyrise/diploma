@@ -6,6 +6,7 @@ import { applyServiceToggle, PriceAutoHint } from '../../utils/orderPrice'
 import { getStatusDeadlineError } from '../../utils/orderStatus'
 import { findClientEmail } from '../../components/messaging/utils'
 import EmailHistoryBlock from '../../components/messaging/EmailHistoryBlock'
+import { useConfirm } from '../../context/ConfirmContext'
 
 const STATUSES = [
   { value: 'in_progress', label: 'В работе' },
@@ -32,6 +33,7 @@ function formatFileSize(bytes) {
 export default function OrderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const [order, setOrder] = useState(null)
   const [clientDetail, setClientDetail] = useState(null)
   const [editing, setEditing] = useState(false)
@@ -137,7 +139,7 @@ export default function OrderDetail() {
   }
 
   const deleteOrder = async () => {
-    if (!confirm('Удалить заказ?')) return
+    if (!await confirm('Удалить заказ?')) return
     await ordersApi.delete(id)
     navigate('/orders')
   }
@@ -173,14 +175,14 @@ export default function OrderDetail() {
   }
 
   const deleteAttachment = async (attachmentId) => {
-    if (!confirm('Удалить вложение?')) return
+    if (!await confirm('Удалить вложение?')) return
     await ordersApi.deleteAttachment(id, attachmentId)
     loadAttachments()
   }
 
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Загрузка...</div>
   if (loadError) return (
-    <div style={{ padding: '36px 40px', maxWidth: 1200 }}>
+    <div className="page page-medium">
       <button onClick={() => navigate('/orders')} style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none' }}>← Назад к заказам</button>
       <Card style={{ padding: 32, textAlign: 'center' }}>
         <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>{loadError}</p>
@@ -206,21 +208,21 @@ export default function OrderDetail() {
   }
 
   return (
-    <div style={{ padding: '36px 40px', maxWidth: 1400 }}>
+    <div className="page page-wide">
       <button onClick={() => navigate('/orders')} style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: 20, cursor: 'pointer', background: 'none', border: 'none' }}>← Назад к заказам</button>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
-        <div>
+      <div className="detail-header">
+        <div className="detail-header-info">
           {editing
-            ? <input value={form.title} onChange={e => set('title', e.target.value)} style={{ ...inputStyle, fontSize: '1.4rem', fontFamily: 'var(--font-display)', fontWeight: 500, width: 420 }} />
-            : <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 500 }}>{order.title}</h1>
+            ? <input value={form.title} onChange={e => set('title', e.target.value)} className="title-input" style={{ ...inputStyle, fontSize: '1.4rem', fontFamily: 'var(--font-display)', fontWeight: 'var(--font-display-weight)' }} />
+            : <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)' }}>{order.title}</h1>
           }
           <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
             <Badge status={order.status} label={order.status_display} />
             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatDate(order.created_at)}</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="actions-row">
           {!editing && client && (
             <Button variant="secondary" onClick={writeToClient}>Написать клиенту</Button>
           )}
@@ -231,7 +233,7 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 270px 270px', gap: 20, alignItems: 'start' }}>
+      <div className="grid-order-detail">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card style={{ padding: 24 }}>
             <h3 style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Описание / ТЗ</h3>
@@ -488,8 +490,8 @@ export default function OrderDetail() {
             </Card>
           )}
 
-          {!editing && (
-            <EmailHistoryBlock orderId={Number(id)} />
+          {client && !editing && (
+            <EmailHistoryBlock clientId={client.id} />
           )}
         </div>
       </div>

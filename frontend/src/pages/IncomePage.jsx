@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { analytics } from '../api'
 import { Card, PageHeader, StatCard, formatMoney } from '../components/ui'
-
-const COLORS = ['#c17b5c', '#a0624a', '#d4967a', '#e8bba8', '#6b9e8a', '#4a7fb5']
+import { getLeadSourceColor, getServiceColor } from '../utils/leadSourceColors'
 
 export default function IncomePage() {
   const [summary, setSummary] = useState(null)
@@ -25,10 +24,10 @@ export default function IncomePage() {
   }, [year])
 
   return (
-    <div style={{ padding: '36px 40px' }}>
+    <div className="page">
       <PageHeader title="Доходы" subtitle="Аналитика и статистика" />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 }}>
+      <div className="grid-stats-3" style={{ marginBottom: 28 }}>
         <StatCard label="Всего заработано" value={summary ? formatMoney(summary.total) : '—'} color="var(--accent)" />
         <StatCard label="Завершённых заказов" value={summary?.count ?? '—'} />
         <StatCard
@@ -42,7 +41,7 @@ export default function IncomePage() {
       {/* Доходы по месяцам */}
       <Card style={{ padding: 24, marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 500 }}>Доходы по месяцам</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 'var(--font-display-weight)' }}>Доходы по месяцам</h2>
           <select value={year} onChange={e => setYear(Number(e.target.value))}
             style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', background: '#fff' }}>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -58,24 +57,24 @@ export default function IncomePage() {
         </ResponsiveContainer>
       </Card>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="grid-2">
         {/* Источники клиентов */}
         <Card style={{ padding: 24 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 500, marginBottom: 20 }}>Источники клиентов</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 'var(--font-display-weight)', marginBottom: 20 }}>Источники клиентов</h2>
           {byLeadSource.length === 0
             ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: '0.875rem' }}>Нет данных</div>
             : (
-              <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+              <div className="pie-row">
                 <PieChart width={160} height={160}>
                   <Pie data={byLeadSource} cx={75} cy={75} outerRadius={70} innerRadius={40} dataKey="total" paddingAngle={2}>
-                    {byLeadSource.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    {byLeadSource.map((item, i) => <Cell key={i} fill={getLeadSourceColor(item.label)} />)}
                   </Pie>
                   <Tooltip formatter={v => formatMoney(v)} contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
                 </PieChart>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {byLeadSource.map((item, i) => (
+                  {byLeadSource.map(item => (
                     <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: getLeadSourceColor(item.label), flexShrink: 0 }} />
                       <span style={{ fontSize: '0.85rem', flex: 1 }}>{item.label}</span>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{formatMoney(item.total)}</div>
@@ -91,21 +90,22 @@ export default function IncomePage() {
 
         {/* По услугам */}
         <Card style={{ padding: 24 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 500, marginBottom: 20 }}>По услугам</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 'var(--font-display-weight)', marginBottom: 20 }}>По услугам</h2>
           {byService.length === 0
             ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: '0.875rem' }}>Нет данных</div>
             : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {byService.slice(0, 6).map((s, i) => {
+                {byService.slice(0, 6).map(s => {
                   const pct = (s.total / (byService[0]?.total || 1)) * 100
+                  const color = getServiceColor(s.service)
                   return (
                     <div key={s.service}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
                         <span style={{ color: 'var(--text-secondary)' }}>{s.service}</span>
                         <span style={{ fontWeight: 500 }}>{formatMoney(s.total)}</span>
                       </div>
-                      <div style={{ height: 6, background: 'var(--accent-light)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: COLORS[i % COLORS.length], borderRadius: 3 }} />
+                      <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3 }} />
                       </div>
                     </div>
                   )

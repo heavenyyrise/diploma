@@ -26,12 +26,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={authPageLayout.page}>
+    <div {...authPageLayout.page}>
       <AuthBrandPanel />
-      <div style={authPageLayout.formSide}>
-        <div style={authPageLayout.formWrap}>
+      <div {...authPageLayout.formSide}>
+        <div {...authPageLayout.formWrap}>
           <div style={{ marginBottom: 36 }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 500, marginBottom: 6 }}>Вход</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)', marginBottom: 6 }}>Вход</div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Введите email и пароль</p>
           </div>
           <form onSubmit={handle} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
