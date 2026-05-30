@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { Button } from '../components/ui'
 import AuthBrandPanel, { authPageLayout } from '../components/auth/AuthBrandPanel'
+import { getUserFacingError } from '../utils/userFacingError'
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
@@ -24,7 +25,7 @@ export default function VerifyEmailPage() {
       })
       .catch(err => {
         setStatus('error')
-        setMessage(err.response?.data?.detail || 'Не удалось подтвердить email.')
+        setMessage(getUserFacingError(err, 'Не удалось подтвердить email.'))
       })
   }, [searchParams])
 

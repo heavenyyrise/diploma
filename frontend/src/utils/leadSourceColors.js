@@ -18,6 +18,9 @@ const LEAD_SOURCE_COLORS = {
   'рекомендация':     SUCCESS_LIGHT,
   'повторный клиент': SUCCESS_DARK,
   'без источника':    NEUTRAL,
+  'новые клиенты':    SUCCESS,
+  'повторные':        INFO,
+  'без клиента':      NEUTRAL,
 }
 
 const FALLBACK_PALETTE = [

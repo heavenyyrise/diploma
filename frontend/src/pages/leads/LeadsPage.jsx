@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { leads as leadsApi, clients as clientsApi, services as servicesApi, orders as ordersApi } from '../../api'
+import { leads as leadsApi, services as servicesApi, orders as ordersApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
+import { useConfirm } from '../../context/ConfirmContext'
 import { publicFormUrl } from '../../utils/publicFormUrl'
-import { Card, PageHeader, Badge, Button, Modal, inputStyle, formatDate, formatMoney, EmptyState } from '../../components/ui'
+import { Card, PageHeader, Badge, Button, Modal, inputStyle, formatDate, formatMoney, EmptyState, Pagination, PAGE_SIZE } from '../../components/ui'
+import ClientSelect from '../../components/ui/ClientSelect'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 
 const STATUS_COLORS = {
@@ -20,38 +22,46 @@ const STATUS_LABELS = {
 
 export default function LeadsPage() {
   const { user } = useAuth()
+  const confirm = useConfirm()
   const formLink = publicFormUrl(user?.id)
   const [data, setData] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('')
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [orderData, setOrderData] = useState(null)
-  const [clientsList, setClientsList] = useState([])
   const [servicesList, setServicesList] = useState([])
   const initialLoadDone = useRef(false)
+
+  useEffect(() => { setPage(1) }, [filter])
 
   const load = useCallback(({ silent = false } = {}) => {
     const showLoading = !silent && !initialLoadDone.current
     if (showLoading) setLoading(true)
-    return leadsApi.list(filter ? { status: filter } : {})
-      .then(r => setData(r.data.results || r.data))
+    const params = { page }
+    if (filter) params.status = filter
+    return leadsApi.list(params)
+      .then(r => {
+        const payload = r.data
+        setData(payload.results || payload)
+        setTotal(payload.count ?? (payload.results || payload).length)
+      })
       .finally(() => {
         if (showLoading) setLoading(false)
         initialLoadDone.current = true
       })
-  }, [filter])
+  }, [filter, page])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    clientsApi.list().then(r => setClientsList(r.data.results || r.data))
     servicesApi.list().then(r => setServicesList(r.data.results || r.data))
   }, [])
 
   const accept = async lead => {
     const r = await leadsApi.accept(lead.id)
     await load({ silent: true })
-    clientsApi.list().then(res => setClientsList(res.data.results || res.data))
     setSelected(null)
     const firstService = lead.services_detail?.[0]
     setOrderData({
@@ -75,6 +85,13 @@ export default function LeadsPage() {
 
   const discuss = async lead => {
     await leadsApi.update(lead.id, { status: 'in_discussion' })
+    await load({ silent: true })
+    setSelected(null)
+  }
+
+  const deleteLead = async lead => {
+    if (!await confirm(`Удалить заявку от ${lead.name}?`)) return
+    await leadsApi.delete(lead.id)
     await load({ silent: true })
     setSelected(null)
   }
@@ -138,6 +155,12 @@ export default function LeadsPage() {
         ))}
       </div>
 
+      {!loading && data.length > 0 && (
+        <Card style={{ marginTop: 10, padding: 0 }}>
+          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+        </Card>
+      )}
+
       {selected && (
         <LeadDetailModal
           lead={selected}
@@ -146,6 +169,7 @@ export default function LeadsPage() {
           onReject={() => reject(selected.id)}
           onDiscuss={() => discuss(selected)}
           onUpdated={async () => { await load({ silent: true }); setSelected(null) }}
+          onDelete={() => deleteLead(selected)}
         />
       )}
 
@@ -154,7 +178,6 @@ export default function LeadsPage() {
           orderId={orderData.orderId}
           clientId={orderData.clientId}
           initial={orderData}
-          clients={clientsList}
           services={servicesList}
           onClose={() => { setShowOrderModal(false); setOrderData(null) }}
         />
@@ -163,7 +186,7 @@ export default function LeadsPage() {
   )
 }
 
-function EditOrderModal({ orderId, clientId, initial, clients, services, onClose }) {
+function EditOrderModal({ orderId, clientId, initial, services, onClose }) {
   const fromLead = initial.fromLead
   const [form, setForm] = useState({
     title: initial.title,
@@ -178,6 +201,9 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const toggleService = id => setForm(p => applyServiceToggle(p, id, services, priceManuallyEdited))
+  const leadClientOption = fromLead && clientId
+    ? [{ value: String(clientId), label: 'Из заявки' }]
+    : []
 
   useEffect(() => {
     if (initial.services?.length && services.length) {
@@ -212,18 +238,7 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
           <input style={inputStyle} value={form.title} onChange={e => set('title', e.target.value)} />
         </div>
         <div className="grid-form-2">
-          <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Клиент</label>
-            <select style={inputStyle} value={form.client} onChange={e => set('client', e.target.value)}>
-              <option value="">Без клиента</option>
-              {fromLead && clientId && (
-                <option value={String(clientId)}>Из заявки</option>
-              )}
-              {clients
-                .filter(c => !(fromLead && clientId && c.id === clientId))
-                .map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-            </select>
-          </div>
+          <ClientSelect value={form.client} onChange={v => set('client', v)} extraOptions={leadClientOption} />
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Статус</label>
             <select style={inputStyle} value={form.status} onChange={e => set('status', e.target.value)}>
@@ -276,7 +291,7 @@ function EditOrderModal({ orderId, clientId, initial, clients, services, onClose
   )
 }
 
-function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdated }) {
+function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdated, onDelete }) {
   const [notes, setNotes] = useState(lead.notes || '')
   const [saving, setSaving] = useState(false)
   const saveNotes = async () => {
@@ -353,6 +368,10 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdat
             </Button>
           </div>
         )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+          <Button variant="danger" onClick={onDelete}>Удалить</Button>
+        </div>
       </div>
     </Modal>
   )

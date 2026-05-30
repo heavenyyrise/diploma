@@ -83,9 +83,11 @@ export const services = {
   orders: id => api.get(`/services/${id}/orders/`),
 }
 export const analytics = {
-  byLeadSource: p => api.get('/analytics/income/by-lead-source/', { params: p }),
+  byLeadSource: () => api.get('/analytics/income/by-lead-source/'),
+  byClientType: p => api.get('/analytics/income/by-client-type/', { params: p }),
+  newClientsByLeadSource: p => api.get('/analytics/clients/new-by-lead-source/', { params: p }),
   byMonth: p => api.get('/analytics/income/by-month/', { params: p }),
-  byService: () => api.get('/analytics/income/by-service/'),
+  byService: p => api.get('/analytics/income/by-service/', { params: p }),
   summary: p => api.get('/analytics/income/summary/', { params: p }),
   years: () => api.get('/analytics/years/'),
 }

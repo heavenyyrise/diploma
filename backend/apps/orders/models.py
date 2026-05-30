@@ -45,9 +45,12 @@ class Order(models.Model):
         return f'{self.title} — {self.get_status_display()}'
 
     def save(self, *args, **kwargs):
-        if self.status == 'completed' and not self.completed_at:
-            from django.utils import timezone
-            self.completed_at = timezone.now()
+        if self.status == 'completed':
+            if not self.completed_at:
+                from .validators import resolve_completed_at
+                self.completed_at = resolve_completed_at(self.deadline)
+        else:
+            self.completed_at = None
         super().save(*args, **kwargs)
 
 

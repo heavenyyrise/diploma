@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Button, inputStyle } from '../components/ui'
 import AuthBrandPanel, { authPageLayout } from '../components/auth/AuthBrandPanel'
+import { getUserFacingError } from '../utils/userFacingError'
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' })
@@ -18,8 +19,7 @@ export default function LoginPage() {
       await login(form.email, form.password)
       navigate('/')
     } catch (err) {
-      const msg = err.response?.data?.detail || err.response?.data?.non_field_errors?.[0]
-      setError(msg || 'Неверный email или пароль')
+      setError(getUserFacingError(err, 'Неверный email или пароль'))
     } finally {
       setLoading(false)
     }

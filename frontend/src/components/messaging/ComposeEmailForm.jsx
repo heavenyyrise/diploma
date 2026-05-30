@@ -3,6 +3,7 @@ import { messaging as messagingApi } from '../../api'
 import { Button } from '../ui'
 import RecipientInput from './RecipientInput'
 import { EMPTY_RECIPIENT } from './utils'
+import { getUserFacingError } from '../../utils/userFacingError'
 
 export default function ComposeEmailForm({
   recipient: initialRecipient,
@@ -90,11 +91,9 @@ export default function ComposeEmailForm({
       setToEmailOverride('')
       onSent?.(r.data)
     } catch (err) {
-      const detail = err.response?.data?.detail
-      const attachErr = err.response?.data?.attachments
-      const msg = detail || attachErr || 'Не удалось отправить письмо'
-      setError(typeof msg === 'string' ? msg : 'Не удалось отправить письмо')
-      if (typeof detail === 'string' && detail.includes('email для ответов')) {
+      const msg = getUserFacingError(err, 'Не удалось отправить письмо')
+      setError(msg)
+      if (msg.includes('email для ответов')) {
         onReplyToMissing?.()
       }
     } finally {

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clients as clientsApi } from '../../api'
-import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, formatDate, formatMoney } from '../../components/ui'
+import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatDate, formatMoney } from '../../components/ui'
 import ContactsEditor from '../../components/ui/ContactsEditor'
 import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
 
 export default function ClientsPage() {
   const [data, setData] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [incomeSort, setIncomeSort] = useState('')
@@ -15,12 +17,18 @@ export default function ClientsPage() {
   const [contactTypes, setContactTypes] = useState([])
   const navigate = useNavigate()
 
+  useEffect(() => { setPage(1) }, [search, incomeSort])
+
   const load = useCallback(() => {
     setLoading(true)
-    const params = { ordering: incomeSort || '-created_at' }
+    const params = { ordering: incomeSort || '-created_at', page }
     if (search) params.search = search
-    clientsApi.list(params).then(r => setData(r.data.results || r.data)).finally(() => setLoading(false))
-  }, [search, incomeSort])
+    clientsApi.list(params).then(r => {
+      const payload = r.data
+      setData(payload.results || payload)
+      setTotal(payload.count ?? (payload.results || payload).length)
+    }).finally(() => setLoading(false))
+  }, [search, incomeSort, page])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
@@ -46,6 +54,7 @@ export default function ClientsPage() {
           {[
             {
               label: 'Поиск',
+              grow: true,
               el: <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Имя, контакт..." style={inputStyle} />,
             },
             {
@@ -62,8 +71,8 @@ export default function ClientsPage() {
                 </select>
               ),
             },
-          ].map(({ label, el }) => (
-            <div key={label} className="filter-field">
+          ].map(({ label, el, grow }) => (
+            <div key={label} className={`filter-field${grow ? ' filter-field-grow' : ''}`}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
               {el}
             </div>
@@ -72,7 +81,10 @@ export default function ClientsPage() {
       </Card>
       <Card>
         {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>
-          : <Table columns={columns} data={data} onRowClick={r => navigate(`/clients/${r.id}`)} emptyState={<EmptyState icon="👥" title="Клиентов нет" subtitle="Добавьте первого клиента" action={<Button onClick={() => setShowCreate(true)}>+ Новый клиент</Button>} />} />
+          : <>
+            <Table columns={columns} data={data} onRowClick={r => navigate(`/clients/${r.id}`)} emptyState={<EmptyState icon="👥" title="Клиентов нет" subtitle="Добавьте первого клиента" action={<Button onClick={() => setShowCreate(true)}>+ Новый клиент</Button>} />} />
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+          </>
         }
       </Card>
       <CreateClientModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load() }} leadSources={leadSources} contactTypes={contactTypes} />

@@ -8,10 +8,10 @@ import { useConfirm } from '../context/ConfirmContext'
 
 const FORM_FIELDS = [
   { key: 'show_lead_source', label: 'Источник клиента',   hint: 'Откуда узнал о вас' },
-  { key: 'show_description', label: 'Описание задачи',    hint: 'Основное текстовое поле' },
-  { key: 'show_service',     label: 'Выбор услуги',       hint: 'Выпадающий список услуг' },
-  { key: 'show_budget',      label: 'Бюджет',             hint: 'Числовое поле' },
-  { key: 'show_deadline',    label: 'Желаемый срок',      hint: 'Поле даты' },
+  { key: 'show_description', label: 'Описание задачи',    hint: 'Клиент опишет, что нужно сделать' },
+  { key: 'show_service',     label: 'Выбор услуги',       hint: 'Клиент выберет услугу из вашего списка' },
+  { key: 'show_budget',      label: 'Бюджет',             hint: 'Клиент укажет желаемую сумму' },
+  { key: 'show_deadline',    label: 'Желаемый срок',      hint: 'Клиент укажет срок выполнения' },
 ]
 
 export default function FormSettingsPage() {

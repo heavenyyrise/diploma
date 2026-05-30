@@ -1,7 +1,5 @@
 import { Button, Field, inputStyle } from '../ui'
 
-const PLACEHOLDERS = '{client_name}, {order_title}, {order_price}, {order_status}, {deadline}'
-
 export default function TemplateEditor({ template, onChange, onSave, onDelete, saving, isNew }) {
   if (!template) {
     return (
@@ -30,7 +28,6 @@ export default function TemplateEditor({ template, onChange, onSave, onDelete, s
             style={{ ...inputStyle, minHeight: 200, resize: 'vertical' }}
           />
         </Field>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Плейсхолдеры: {PLACEHOLDERS}</p>
       </div>
       <div style={{ display: 'flex', gap: 8, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
         {!isNew && (

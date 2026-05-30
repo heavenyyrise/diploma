@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
-import { Card, PageHeader, Badge, Button, Modal, Field, inputStyle, Table, EmptyState, formatMoney, formatDate } from '../../components/ui'
+import { Card, PageHeader, Badge, Button, Modal, Field, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatMoney, formatDate } from '../../components/ui'
+import ClientSelect from '../../components/ui/ClientSelect'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 import { getStatusDeadlineError } from '../../utils/orderStatus'
 import { CreateClientModal } from '../clients/ClientsPage'
@@ -16,34 +17,39 @@ const STATUSES = [
 
 export default function OrdersPage() {
   const [data, setData] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({ status: '', search: '', lead_source: '', deadline_from: '', deadline_to: '' })
   const [showCreate, setShowCreate] = useState(false)
-  const [clientsList, setClientsList] = useState([])
   const [servicesList, setServicesList] = useState([])
   const [leadSources, setLeadSources] = useState([])
   const navigate = useNavigate()
 
+  useEffect(() => { setPage(1) }, [filters])
+
   const load = useCallback(() => {
-    const p = {}
+    const p = { page }
     if (filters.status) p.status = filters.status
     if (filters.search) p.search = filters.search
     if (filters.lead_source) p.lead_source = filters.lead_source
     if (filters.deadline_from) p.deadline_from = filters.deadline_from
     if (filters.deadline_to) p.deadline_to = filters.deadline_to
     setLoading(true)
-    ordersApi.list(p).then(r => setData(r.data.results || r.data)).finally(() => setLoading(false))
-  }, [filters])
+    ordersApi.list(p).then(r => {
+      const payload = r.data
+      setData(payload.results || payload)
+      setTotal(payload.count ?? (payload.results || payload).length)
+    }).finally(() => setLoading(false))
+  }, [filters, page])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    clientsApi.list().then(r => setClientsList(r.data.results || r.data))
     servicesApi.list().then(r => setServicesList(r.data.results || r.data))
     clientsApi.leadSources().then(r => setLeadSources(r.data.results || r.data))
   }, [])
 
   const setFilter = (k, v) => setFilters(p => ({ ...p, [k]: v }))
-  const hasFilters = filters.status || filters.search || filters.lead_source || filters.deadline_from || filters.deadline_to
 
   const columns = [
     { key: 'title', label: 'Название', render: r => <span style={{ fontWeight: 500 }}>{r.title}</span> },
@@ -70,7 +76,7 @@ export default function OrdersPage() {
       <Card style={{ padding: '16px 20px', marginBottom: 20 }}>
         <div className="filter-bar">
           {[
-            { label: 'Поиск', el: <input value={filters.search} onChange={e => setFilter('search', e.target.value)} placeholder="Название, клиент..." style={inputStyle} /> },
+            { label: 'Поиск', grow: true, el: <input value={filters.search} onChange={e => setFilter('search', e.target.value)} placeholder="Название, клиент..." style={inputStyle} /> },
             { label: 'Статус', el: <select value={filters.status} onChange={e => setFilter('status', e.target.value)} style={inputStyle}>{STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select> },
             { label: 'Источник клиента', el: (
               <select value={filters.lead_source} onChange={e => setFilter('lead_source', e.target.value)} style={inputStyle}>
@@ -80,26 +86,23 @@ export default function OrdersPage() {
             )},
             { label: 'Дедлайн от', el: <input type="date" value={filters.deadline_from} onChange={e => setFilter('deadline_from', e.target.value)} style={inputStyle} /> },
             { label: 'Дедлайн до', el: <input type="date" value={filters.deadline_to} onChange={e => setFilter('deadline_to', e.target.value)} style={inputStyle} /> },
-          ].map(({ label, el }) => (
-            <div key={label} className="filter-field">
+          ].map(({ label, el, grow }) => (
+            <div key={label} className={`filter-field${grow ? ' filter-field-grow' : ''}`}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
               {el}
             </div>
           ))}
-          {hasFilters && (
-            <button onClick={() => setFilters({ status: '', search: '', lead_source: '', deadline_from: '', deadline_to: '' })}
-              style={{ fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none', alignSelf: 'flex-end', paddingBottom: 2 }}>
-              Сбросить
-            </button>
-          )}
         </div>
       </Card>
 
       <Card>
         {loading
           ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>
-          : <Table columns={columns} data={data} onRowClick={r => navigate(`/orders/${r.id}`)}
+          : <>
+            <Table columns={columns} data={data} onRowClick={r => navigate(`/orders/${r.id}`)}
               emptyState={<EmptyState icon="📋" title="Заказов нет" subtitle="Создайте первый заказ" action={<Button onClick={() => setShowCreate(true)}>+ Новый заказ</Button>} />} />
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+          </>
         }
       </Card>
 
@@ -107,28 +110,26 @@ export default function OrdersPage() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={() => { setShowCreate(false); load() }}
-        clients={clientsList}
         services={servicesList}
       />
     </div>
   )
 }
 
-export function CreateOrderModal({ open, onClose, onCreated, clients: initialClients, services, initialData }) {
+export function CreateOrderModal({ open, onClose, onCreated, services, initialData }) {
   const [form, setForm] = useState({ title: '', client: '', services: [], description: '', status: 'in_progress', price: '', deadline: '' })
   const [loading, setLoading] = useState(false)
-  const [clients, setClients] = useState(initialClients || [])
   const [showCreateClient, setShowCreateClient] = useState(false)
   const [leadSources, setLeadSources] = useState([])
   const [contactTypes, setContactTypes] = useState([])
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
+  const [createdClient, setCreatedClient] = useState(null)
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
-
-  useEffect(() => { setClients(initialClients || []) }, [initialClients])
 
   useEffect(() => {
     if (open) {
       setPriceManuallyEdited(false)
+      setCreatedClient(null)
       setForm({ title: '', client: '', services: [], description: '', status: 'in_progress', price: '', deadline: '', ...initialData })
       clientsApi.leadSources().then(r => setLeadSources(r.data.results || r.data))
       clientsApi.contactTypes().then(r => setContactTypes(r.data.results || r.data))
@@ -158,11 +159,13 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
   }
 
   const handleClientCreated = async () => {
-    // Перезагружаем список и выбираем только что созданного (первый — сортировка -created_at)
     const r = await clientsApi.list()
     const updated = r.data.results || r.data
-    setClients(updated)
-    if (updated.length > 0) set('client', updated[0].id)
+    if (updated.length > 0) {
+      const newest = updated[0]
+      setCreatedClient({ value: String(newest.id), label: newest.lead_source_name ? `${newest.name} (${newest.lead_source_name})` : newest.name })
+      set('client', String(newest.id))
+    }
     setShowCreateClient(false)
   }
 
@@ -174,16 +177,15 @@ export function CreateOrderModal({ open, onClose, onCreated, clients: initialCli
             <input style={inputStyle} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Название проекта" />
           </Field>
 
-          <Field label="Клиент">
-            <select style={inputStyle} value={form.client} onChange={e => set('client', e.target.value)}>
-              <option value="">Без клиента</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.lead_source_name ? ` (${c.lead_source_name})` : ''}</option>)}
-            </select>
-            <button type="button" onClick={() => setShowCreateClient(true)}
-              style={{ alignSelf: 'flex-start', marginTop: 6, fontSize: '0.8rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>
-              + Создать нового клиента
-            </button>
-          </Field>
+          <ClientSelect
+            value={form.client}
+            onChange={v => set('client', v)}
+            extraOptions={createdClient ? [createdClient] : []}
+          />
+          <button type="button" onClick={() => setShowCreateClient(true)}
+            style={{ alignSelf: 'flex-start', marginTop: -8, fontSize: '0.8rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0 }}>
+            + Создать нового клиента
+          </button>
 
           {services.length > 0 && (
             <Field label="Услуги">

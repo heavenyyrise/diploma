@@ -4,6 +4,7 @@ import { clients as clientsApi } from '../../api'
 import { Card, Badge, Button, inputStyle, formatMoney, formatDate } from '../../components/ui'
 import ContactsEditor from '../../components/ui/ContactsEditor'
 import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
+import { getUserFacingError } from '../../utils/userFacingError'
 import { findClientEmail } from '../../components/messaging/utils'
 import EmailHistoryBlock from '../../components/messaging/EmailHistoryBlock'
 import { useConfirm } from '../../context/ConfirmContext'
@@ -69,10 +70,7 @@ export default function ClientDetail() {
       })))
       setEditing(false)
     } catch (err) {
-      const msg = err.response?.data?.name?.[0]
-        || err.response?.data?.detail
-        || 'Не удалось сохранить клиента'
-      setSaveError(msg)
+      setSaveError(getUserFacingError(err, 'Не удалось сохранить клиента'))
     } finally { setSaving(false) }
   }
 

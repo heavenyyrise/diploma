@@ -4,6 +4,7 @@ import { orders as ordersApi, clients as clientsApi, services as servicesApi } f
 import { Card, Badge, Button, inputStyle, formatMoney, formatDate } from '../../components/ui'
 import { applyServiceToggle, PriceAutoHint } from '../../utils/orderPrice'
 import { getStatusDeadlineError } from '../../utils/orderStatus'
+import { getUserFacingError } from '../../utils/userFacingError'
 import { findClientEmail } from '../../components/messaging/utils'
 import EmailHistoryBlock from '../../components/messaging/EmailHistoryBlock'
 import { useConfirm } from '../../context/ConfirmContext'
@@ -80,7 +81,7 @@ export default function OrderDetail() {
         setOrder(null)
         setLoadError(err.response?.status === 404
           ? 'Заказ не найден'
-          : 'Не удалось загрузить заказ. Убедитесь, что backend запущен (python manage.py runserver).')
+          : 'Не удалось загрузить заказ. Проверьте подключение к интернету и попробуйте снова.')
       })
       .finally(() => setLoading(false))
   }
@@ -131,10 +132,7 @@ export default function OrderDetail() {
       }
       loadChangelog()
     } catch (err) {
-      const msg = err.response?.data?.status?.[0]
-        || err.response?.data?.detail
-        || 'Не удалось сохранить заказ'
-      setSaveError(msg)
+      setSaveError(getUserFacingError(err, 'Не удалось сохранить заказ'))
     } finally { setSaving(false) }
   }
 
@@ -152,10 +150,7 @@ export default function OrderDetail() {
       await ordersApi.uploadAttachment(id, file)
       loadAttachments()
     } catch (err) {
-      const msg = err.response?.data?.file?.[0]
-        || err.response?.data?.detail
-        || 'Не удалось загрузить файл'
-      setUploadError(typeof msg === 'string' ? msg : 'Не удалось загрузить файл')
+      setUploadError(getUserFacingError(err, 'Не удалось загрузить файл'))
     } finally {
       setUploading(false)
     }

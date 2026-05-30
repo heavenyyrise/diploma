@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { auth } from '../api'
 import { Button, inputStyle } from '../components/ui'
 import AuthBrandPanel, { authPageLayout } from '../components/auth/AuthBrandPanel'
+import { getUserFacingError } from '../utils/userFacingError'
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', password2: '' })
@@ -25,9 +26,7 @@ export default function RegisterPage() {
       await auth.register({ name: form.name, email: form.email, password: form.password })
       setSent(true)
     } catch (err) {
-      const data = err.response?.data
-      const msg = data?.email?.[0] || data?.password?.[0] || data?.detail || 'Не удалось зарегистрироваться'
-      setError(typeof msg === 'string' ? msg : 'Не удалось зарегистрироваться')
+      setError(getUserFacingError(err, 'Не удалось зарегистрироваться'))
     } finally {
       setLoading(false)
     }

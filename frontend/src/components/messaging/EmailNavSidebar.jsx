@@ -44,7 +44,7 @@ export default function EmailNavSidebar({ activeTab, onTabChange, replyTo, onRep
           type="email"
           value={replyTo}
           onChange={e => onReplyToChange(e.target.value)}
-          placeholder="your@gmail.com"
+          placeholder="example@mail.ru"
           style={{ ...inputStyle, fontSize: '0.82rem', marginBottom: 8, width: '100%', boxSizing: 'border-box' }}
         />
         <Button size="sm" onClick={onSaveReplyTo} disabled={savingReply} style={{ width: '100%' }}>

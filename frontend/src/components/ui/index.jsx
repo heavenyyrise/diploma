@@ -126,10 +126,13 @@ export function EmptyState({ icon, title, subtitle, action }) {
   )
 }
 
-export function StatCard({ label, value, sub, color }) {
+export function StatCard({ label, value, sub, color, headerAction }) {
   return (
     <Card style={{ padding: '20px 24px' }}>
-      <div style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+        <div style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+        {headerAction}
+      </div>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.9rem', fontWeight: 'var(--font-display-weight)', color: color || 'var(--text-primary)', lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>}
     </Card>
@@ -156,6 +159,65 @@ export function Table({ columns, data, onRowClick, emptyState }) {
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+export const PAGE_SIZE = 20
+
+function buildPageItems(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const items = [1]
+  const left = Math.max(2, current - 1)
+  const right = Math.min(total - 1, current + 1)
+  if (left > 2) items.push('…')
+  for (let p = left; p <= right; p += 1) items.push(p)
+  if (right < total - 1) items.push('…')
+  items.push(total)
+  return items
+}
+
+export function Pagination({ page, pageSize = PAGE_SIZE, total, onPageChange }) {
+  if (!total || total <= pageSize) return null
+
+  const totalPages = Math.ceil(total / pageSize)
+  const safePage = Math.min(Math.max(page, 1), totalPages)
+  const from = (safePage - 1) * pageSize + 1
+  const to = Math.min(safePage * pageSize, total)
+  const items = buildPageItems(safePage, totalPages)
+
+  const btnStyle = (active, disabled) => ({
+    minWidth: 32,
+    height: 32,
+    padding: '0 8px',
+    borderRadius: 'var(--radius-sm)',
+    border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+    background: active ? 'var(--accent)' : '#fff',
+    color: active ? '#fff' : 'var(--text-secondary)',
+    fontSize: '0.82rem',
+    fontWeight: active ? 500 : 400,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.45 : 1,
+    fontFamily: 'var(--font-body)',
+  })
+
+  return (
+    <div className="pagination-bar">
+      <div className="pagination-summary">
+        Показано {from}–{to} из {total}
+      </div>
+      <div className="pagination-controls">
+        <button type="button" className="pagination-nav" disabled={safePage <= 1} onClick={() => onPageChange(safePage - 1)} style={btnStyle(false, safePage <= 1)} aria-label="Предыдущая страница">←</button>
+        <span className="pagination-mobile">{safePage} / {totalPages}</span>
+        <div className="pagination-pages">
+          {items.map((item, i) => (
+            typeof item === 'number'
+              ? <button key={`${item}-${i}`} type="button" onClick={() => onPageChange(item)} style={btnStyle(item === safePage, false)}>{item}</button>
+              : <span key={`ellipsis-${i}`} style={{ padding: '0 4px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>…</span>
+          ))}
+        </div>
+        <button type="button" className="pagination-nav" disabled={safePage >= totalPages} onClick={() => onPageChange(safePage + 1)} style={btnStyle(false, safePage >= totalPages)} aria-label="Следующая страница">→</button>
+      </div>
     </div>
   )
 }
