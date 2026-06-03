@@ -1,37 +1,48 @@
-// Базовые цвета с дашборда (--info, --success) и приглушённые производные
-const INFO = '#4a7fb5'
-const SUCCESS = '#65a165'
-const INFO_LIGHT = '#6a94bc'
-const INFO_DARK = '#3d6d9e'
-const SUCCESS_LIGHT = '#7aad7a'
-const SUCCESS_DARK = '#528f52'
-const TEAL = '#5a9494'
-const ACCENT = '#c17b5c'
-const NEUTRAL = '#a8a29e'
+// Палитра с разнесёнными оттенками — без пары похожих зелёных/синих подряд
+const PALETTE = {
+  blue: '#4a7fb5',
+  terracotta: '#c17b5c',
+  purple: '#8b6bb8',
+  rose: '#d4537a',
+  amber: '#c9a227',
+  teal: '#5a9494',
+  green: '#528f52',
+  indigo: '#5c6bc0',
+  slate: '#7a8a9a',
+  neutral: '#a8a29e',
+}
 
 const LEAD_SOURCE_COLORS = {
-  instagram:          SUCCESS,
-  telegram:           INFO,
-  'вконтакте':        INFO_DARK,
-  vk:                 INFO_DARK,
-  'реклама':          ACCENT,
-  'рекомендация':     SUCCESS_LIGHT,
-  'повторный клиент': SUCCESS_DARK,
-  'без источника':    NEUTRAL,
-  'новые клиенты':    SUCCESS,
-  'повторные':        INFO,
-  'без клиента':      NEUTRAL,
+  instagram:          PALETTE.rose,
+  telegram:           PALETTE.blue,
+  'вконтакте':        PALETTE.indigo,
+  vk:                 PALETTE.indigo,
+  'реклама':          PALETTE.terracotta,
+  'рекомендация':     PALETTE.purple,
+  'повторный клиент': PALETTE.teal,
+  'без источника':    PALETTE.neutral,
+  'новые клиенты':    PALETTE.green,
+  'повторные':        PALETTE.blue,
+  'без клиента':      PALETTE.neutral,
 }
 
 const FALLBACK_PALETTE = [
-  INFO, SUCCESS, TEAL, INFO_LIGHT, SUCCESS_LIGHT, ACCENT, INFO_DARK, SUCCESS_DARK,
+  PALETTE.blue,
+  PALETTE.terracotta,
+  PALETTE.purple,
+  PALETTE.rose,
+  PALETTE.amber,
+  PALETTE.teal,
+  PALETTE.green,
+  PALETTE.indigo,
+  PALETTE.slate,
 ]
 
 function colorByName(label, map = {}) {
   const key = (label || '').trim().toLowerCase()
   if (map[key]) return map[key]
   let hash = 0
-  for (let i = 0; i < key.length; i++) hash = (hash + key.charCodeAt(i)) % FALLBACK_PALETTE.length
+  for (let i = 0; i < key.length; i++) hash = (hash + key.charCodeAt(i) * (i + 1)) % FALLBACK_PALETTE.length
   return FALLBACK_PALETTE[hash]
 }
 
@@ -40,5 +51,5 @@ export function getLeadSourceColor(label) {
 }
 
 export function getServiceColor(name) {
-  return colorByName(name, { 'без услуги': NEUTRAL })
+  return colorByName(name, { 'без услуги': PALETTE.neutral })
 }

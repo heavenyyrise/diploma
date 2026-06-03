@@ -88,7 +88,13 @@ export default function OrderDetail() {
 
   useEffect(() => {
     loadOrder()
-    clientsApi.list().then(r => setClients(r.data.results || r.data)).catch(() => setClients([]))
+    clientsApi.list().then(r => {
+      const items = r.data.results || r.data
+      setClients(items)
+      // #region agent log
+      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'OrderDetail.jsx:load',message:'order detail clients loaded',data:{loadedCount:items.length,apiCount:r.data.count??null},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+    }).catch(() => setClients([]))
     servicesApi.list().then(r => setServicesList(r.data.results || r.data)).catch(() => setServicesList([]))
     loadChangelog()
     loadAttachments()

@@ -42,7 +42,7 @@ export default function ClientsPage() {
     { key: 'lead_source_name', label: 'Источник', render: r => r.lead_source_name ? <span style={{ fontSize: '0.78rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '2px 8px', borderRadius: 20 }}>{r.lead_source_name}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span> },
     { key: 'is_regular', label: 'Тип', render: r => r.is_regular ? <span style={{ fontSize: '0.75rem', background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '2px 8px', borderRadius: 20, fontWeight: 500 }}>Постоянный</span> : <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Разовый</span> },
     { key: 'total_orders', label: 'Заказов', muted: true },
-    { key: 'total_income', label: 'Доход', render: r => <span style={{ fontWeight: 500 }}>{r.total_income > 0 ? formatMoney(r.total_income) : '—'}</span> },
+    { key: 'total_income', label: 'Доход', render: r => <span style={{ fontWeight: 500, color: r.total_income > 0 ? 'var(--accent)' : undefined }}>{r.total_income > 0 ? formatMoney(r.total_income) : '—'}</span> },
     { key: 'created_at', label: 'Добавлен', render: r => formatDate(r.created_at), muted: true, nowrap: true },
   ]
 

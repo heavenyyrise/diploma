@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { formSettings as formSettingsApi, leads as leadsApi } from '../api'
+import { sanitizeClientName, getClientNameError } from '../utils/clientName'
 
 export default function PublicLeadForm() {
   const [searchParams] = useSearchParams()
@@ -37,6 +38,8 @@ export default function PublicLeadForm() {
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
+  const nameError = getClientNameError(form.name, 'Имя')
+
   const toggleService = id => {
     setSelectedServices(prev =>
       prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
@@ -45,7 +48,7 @@ export default function PublicLeadForm() {
 
   const handle = async e => {
     e.preventDefault()
-    if (!form.name || !form.contact_value || !form.contact_type) return
+    if (!form.name.trim() || nameError || !form.contact_value || !form.contact_type) return
     setLoading(true); setError('')
     try {
       const payload = {
@@ -59,8 +62,16 @@ export default function PublicLeadForm() {
       if (form.budget) payload.budget = form.budget
       if (form.deadline) payload.deadline = form.deadline
       await leadsApi.createPublic(userId, payload)
+      // #region agent log
+      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'PublicLeadForm.jsx:handle',message:'public lead submit ok',data:{hasNameError:!!nameError,servicesCount:selectedServices.length},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       setSent(true)
-    } catch { setError('Что-то пошло не так. Попробуйте ещё раз.') }
+    } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'PublicLeadForm.jsx:handle',message:'public lead submit fail',data:{status:err?.response?.status??null,fieldKeys:err?.response?.data?Object.keys(err.response.data):[]},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      setError('Что-то пошло не так. Попробуйте ещё раз.')
+    }
     finally { setLoading(false) }
   }
 
@@ -116,8 +127,16 @@ export default function PublicLeadForm() {
                 <SLabel>Контактная информация</SLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <FField label="Ваше имя / название организации" required>
-                    <input value={form.name} onChange={e => set('name', e.target.value)}
-                      placeholder="Иван Иванов или ООО «Компания»" required style={fStyle} />
+                    <input
+                      value={form.name}
+                      onChange={e => set('name', sanitizeClientName(e.target.value))}
+                      placeholder="Иван Иванов"
+                      required
+                      style={fStyle}
+                    />
+                    {nameError && (
+                      <div style={{ fontSize: '0.82rem', color: 'var(--danger)', marginTop: 2 }}>{nameError}</div>
+                    )}
                   </FField>
 
                   <FField label="Контакт для связи" required hint="Выберите тип и введите значение">
@@ -219,8 +238,8 @@ export default function PublicLeadForm() {
                 {error && (
                   <div style={{ fontSize: '0.85rem', color: 'var(--danger)', background: 'var(--danger-bg)', padding: '8px 14px', borderRadius: 'var(--radius-sm)' }}>{error}</div>
                 )}
-                <button type="submit" disabled={loading || !form.name || !form.contact_value || !form.contact_type}
-                  style={{ width: '100%', padding: '13px', background: form.name && form.contact_value ? 'var(--accent)' : 'var(--border-strong)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.95rem', fontWeight: 500, cursor: loading || !form.name || !form.contact_value ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)' }}>
+                <button type="submit" disabled={loading || !form.name.trim() || !!nameError || !form.contact_value || !form.contact_type}
+                  style={{ width: '100%', padding: '13px', background: form.name.trim() && !nameError && form.contact_value ? 'var(--accent)' : 'var(--border-strong)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.95rem', fontWeight: 500, cursor: loading || !form.name.trim() || nameError || !form.contact_value ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)' }}>
                   {loading ? 'Отправляем...' : cfg.button_text}
                 </button>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>Нажимая кнопку, вы соглашаетесь на обработку персональных данных</p>

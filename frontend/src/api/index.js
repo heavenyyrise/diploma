@@ -25,6 +25,11 @@ api.interceptors.response.use(r => r, async err => {
       window.location.href = '/login'
     }
   }
+  // #region agent log
+  if (err.response?.status && err.response.status !== 401) {
+    fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'api/index.js:interceptor',message:'API error',data:{status:err.response.status,url:err.config?.url,method:err.config?.method},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+  }
+  // #endregion
   return Promise.reject(err)
 })
 

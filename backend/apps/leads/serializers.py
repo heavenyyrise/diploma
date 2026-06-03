@@ -3,6 +3,7 @@ from .models import Lead
 from apps.services.models import Service
 from apps.services.serializers import ServiceShortSerializer
 from apps.clients.serializers import LeadSourceSerializer, ContactTypeSerializer
+from apps.clients.validators import validate_client_name
 
 
 class LeadPublicSerializer(serializers.ModelSerializer):
@@ -32,6 +33,12 @@ class LeadPublicSerializer(serializers.ModelSerializer):
             if service.user_id != owner.id:
                 raise serializers.ValidationError('Услуга не принадлежит этому пользователю')
         return services
+
+    def validate_name(self, value):
+        error = validate_client_name(value)
+        if error:
+            raise serializers.ValidationError(error)
+        return value.strip()
 
     def create(self, validated_data):
         services = validated_data.pop('services', [])
