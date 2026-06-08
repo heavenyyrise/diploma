@@ -102,6 +102,9 @@ ALLOWED_ATTACHMENT_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.pdf', '.docx', '.zip
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 
 
+ATTACHMENT_KIND_CHOICES = {'document', 'deliverable'}
+
+
 class OrderAttachmentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
@@ -110,7 +113,7 @@ class OrderAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderAttachment
         fields = [
-            'id', 'original_name', 'file_size', 'file_url',
+            'id', 'kind', 'original_name', 'file_size', 'file_url',
             'is_image', 'uploaded_at', 'uploaded_by_name',
         ]
         read_only_fields = fields
@@ -132,9 +135,20 @@ class OrderAttachmentSerializer(serializers.ModelSerializer):
 
 
 class OrderAttachmentUploadSerializer(serializers.ModelSerializer):
+    kind = serializers.ChoiceField(
+        choices=[('document', 'Документ'), ('deliverable', 'Финальный')],
+        default='document',
+        required=False,
+    )
+
     class Meta:
         model = OrderAttachment
-        fields = ['file']
+        fields = ['file', 'kind']
+
+    def validate_kind(self, value):
+        if value not in ATTACHMENT_KIND_CHOICES:
+            raise serializers.ValidationError('Недопустимый тип вложения.')
+        return value
 
     def validate_file(self, value):
         ext = os.path.splitext(value.name)[1].lower()

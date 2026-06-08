@@ -16,9 +16,6 @@ export function LeadsProvider({ children }) {
     try {
       const r = await leadsApi.list({ status: 'new' })
       const items = r.data.results || r.data
-      // #region agent log
-      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'LeadsContext.jsx:check',message:'new leads poll',data:{itemsLength:items.length,apiCount:r.data.count??null},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       setNewCount(items.length)
       if (prevIdsRef.current === null) {
         prevIdsRef.current = new Set(items.map(l => l.id))
@@ -31,9 +28,7 @@ export function LeadsProvider({ children }) {
         setTimeout(() => setToast(null), 6000)
       }
     } catch (e) {
-      // #region agent log
-      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'LeadsContext.jsx:check',message:'new leads poll failed',data:{status:e?.response?.status??null},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
+      // ignore poll errors
     }
   }, [user])
 

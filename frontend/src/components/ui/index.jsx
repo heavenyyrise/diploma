@@ -115,6 +115,8 @@ export function Field({ label, children, required }) {
 
 export const inputStyle = { padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.875rem', background: '#fff', color: 'var(--text-primary)', outline: 'none', width: '100%' }
 
+export { default as DateInput } from './DateInput'
+
 export function EmptyState({ icon, title, subtitle, action }) {
   return (
     <div style={{ textAlign: 'center', padding: '64px 24px' }}>

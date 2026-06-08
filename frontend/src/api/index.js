@@ -25,11 +25,6 @@ api.interceptors.response.use(r => r, async err => {
       window.location.href = '/login'
     }
   }
-  // #region agent log
-  if (err.response?.status && err.response.status !== 401) {
-    fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'api/index.js:interceptor',message:'API error',data:{status:err.response.status,url:err.config?.url,method:err.config?.method},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-  }
-  // #endregion
   return Promise.reject(err)
 })
 
@@ -52,10 +47,11 @@ export const orders = {
   stats: () => api.get('/orders/stats/'),
   recent: () => api.get('/orders/recent/'),
   changelog: id => api.get(`/orders/${id}/changelog/`),
-  attachments: id => api.get(`/orders/${id}/attachments/`),
-  uploadAttachment: (id, file) => {
+  attachments: (id, kind) => api.get(`/orders/${id}/attachments/`, { params: kind ? { kind } : {} }),
+  uploadAttachment: (id, file, kind = 'document') => {
     const fd = new FormData()
     fd.append('file', file)
+    fd.append('kind', kind)
     return api.post(`/orders/${id}/attachments/`, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
@@ -118,7 +114,9 @@ export const messaging = {
     delete: id => api.delete(`/messaging/templates/${id}/`),
   },
   send: data => {
-    if (data.attachments?.length) {
+    const hasFiles = data.attachments?.length > 0
+    const hasOrderFiles = data.order_attachment_ids?.length > 0
+    if (hasFiles || hasOrderFiles) {
       const fd = new FormData()
       fd.append('to_email', data.to_email)
       fd.append('subject', data.subject)
@@ -126,7 +124,8 @@ export const messaging = {
       if (data.order_id) fd.append('order_id', data.order_id)
       if (data.client_id) fd.append('client_id', data.client_id)
       if (data.template_id) fd.append('template_id', data.template_id)
-      data.attachments.forEach(f => fd.append('attachments', f))
+      data.attachments?.forEach(f => fd.append('attachments', f))
+      data.order_attachment_ids?.forEach(id => fd.append('order_attachment_ids', id))
       return api.post('/messaging/send/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
     }
     return api.post('/messaging/send/', data)

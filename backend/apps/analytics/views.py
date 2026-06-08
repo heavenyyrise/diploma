@@ -173,7 +173,12 @@ class IncomeByServiceView(APIView):
             total = orders_qs.aggregate(t=Sum('price'))['t'] or 0
             count = orders_qs.count()
             if total > 0:
-                result.append({'service': service.name, 'total': float(total), 'count': count})
+                result.append({
+                    'service': service.name,
+                    'service_id': service.id,
+                    'total': float(total),
+                    'count': count,
+                })
 
         no_service_qs = Order.objects.filter(
             user=request.user,
@@ -186,6 +191,7 @@ class IncomeByServiceView(APIView):
         if no_service_total > 0:
             result.append({
                 'service': 'Без услуги',
+                'service_id': None,
                 'total': float(no_service_total),
                 'count': no_service_qs.count(),
             })

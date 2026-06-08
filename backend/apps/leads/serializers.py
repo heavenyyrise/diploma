@@ -3,7 +3,7 @@ from .models import Lead
 from apps.services.models import Service
 from apps.services.serializers import ServiceShortSerializer
 from apps.clients.serializers import LeadSourceSerializer, ContactTypeSerializer
-from apps.clients.validators import validate_client_name
+from apps.clients.validators import validate_client_name, validate_contact_value, normalize_contact_value
 
 
 class LeadPublicSerializer(serializers.ModelSerializer):
@@ -39,6 +39,16 @@ class LeadPublicSerializer(serializers.ModelSerializer):
         if error:
             raise serializers.ValidationError(error)
         return value.strip()
+
+    def validate(self, attrs):
+        contact_type = attrs.get('contact_type')
+        contact_value = (attrs.get('contact_value') or '').strip()
+        if contact_type and contact_value:
+            error = validate_contact_value(contact_value, contact_type.name)
+            if error:
+                raise serializers.ValidationError({'contact_value': error})
+            attrs['contact_value'] = normalize_contact_value(contact_value, contact_type.name)
+        return attrs
 
     def create(self, validated_data):
         services = validated_data.pop('services', [])

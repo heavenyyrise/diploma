@@ -60,7 +60,7 @@ export default function RegisterPage() {
         <div {...authPageLayout.formWrap}>
           <div style={{ marginBottom: 36 }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)', marginBottom: 6 }}>Регистрация</div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Создайте аккаунт фрилансера</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Создайте аккаунт самозанятого</p>
           </div>
           <form onSubmit={handle} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>

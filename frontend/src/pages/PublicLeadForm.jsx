@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { formSettings as formSettingsApi, leads as leadsApi } from '../api'
+import { DateInput } from '../components/ui'
 import { sanitizeClientName, getClientNameError } from '../utils/clientName'
+import { getContactPlaceholder, getContactValueError, normalizeContactValue } from '../utils/contactValue'
 
 export default function PublicLeadForm() {
   const [searchParams] = useSearchParams()
@@ -39,6 +41,18 @@ export default function PublicLeadForm() {
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const nameError = getClientNameError(form.name, 'Имя')
+  const currentContactType = cfg?.contact_types?.find(t => t.id === Number(form.contact_type))
+  const contactValueError = form.contact_value?.trim()
+    ? getContactValueError(form.contact_value, currentContactType?.name)
+    : null
+
+  const normalizeContactField = () => {
+    if (!form.contact_value?.trim() || !currentContactType?.name) return
+    const normalized = normalizeContactValue(form.contact_value, currentContactType.name)
+    if (normalized !== form.contact_value) {
+      setForm(p => ({ ...p, contact_value: normalized }))
+    }
+  }
 
   const toggleService = id => {
     setSelectedServices(prev =>
@@ -48,13 +62,16 @@ export default function PublicLeadForm() {
 
   const handle = async e => {
     e.preventDefault()
-    if (!form.name.trim() || nameError || !form.contact_value || !form.contact_type) return
+    if (!form.name.trim() || nameError || contactValueError || !form.contact_value || !form.contact_type) return
     setLoading(true); setError('')
     try {
+      const contactValue = currentContactType?.name
+        ? normalizeContactValue(form.contact_value, currentContactType.name)
+        : form.contact_value
       const payload = {
         name: form.name,
         contact_type: form.contact_type,
-        contact_value: form.contact_value,
+        contact_value: contactValue,
         description: form.description || '',
         services: selectedServices,
       }
@@ -62,15 +79,10 @@ export default function PublicLeadForm() {
       if (form.budget) payload.budget = form.budget
       if (form.deadline) payload.deadline = form.deadline
       await leadsApi.createPublic(userId, payload)
-      // #region agent log
-      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'PublicLeadForm.jsx:handle',message:'public lead submit ok',data:{hasNameError:!!nameError,servicesCount:selectedServices.length},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       setSent(true)
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'PublicLeadForm.jsx:handle',message:'public lead submit fail',data:{status:err?.response?.status??null,fieldKeys:err?.response?.data?Object.keys(err.response.data):[]},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      setError('Что-то пошло не так. Попробуйте ещё раз.')
+      const apiError = err?.response?.data?.contact_value
+      setError(Array.isArray(apiError) ? apiError[0] : apiError || 'Что-то пошло не так. Попробуйте ещё раз.')
     }
     finally { setLoading(false) }
   }
@@ -102,14 +114,14 @@ export default function PublicLeadForm() {
 
   const chevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`
   const selectStyle = { ...fStyle, appearance: 'none', paddingRight: 28, backgroundImage: chevron, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', cursor: 'pointer' }
-  const currentContactType = cfg.contact_types?.find(t => t.id === Number(form.contact_type))
   const hasProjectBlock = cfg.show_service || cfg.show_description || cfg.show_budget || cfg.show_deadline
+  const canSubmit = form.name.trim() && !nameError && !contactValueError && form.contact_value && form.contact_type
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <div className="public-form-header">
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: '#fff', fontWeight: 'var(--font-display-weight)' }}>Freelancer ARM</div>
-        <div style={{ fontSize: '0.72rem', color: 'var(--accent)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500 }}>Форма заявки</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: '#fff', fontWeight: 'var(--font-display-weight)', lineHeight: 1.35 }}>Web Application</div>
+        <div style={{ fontSize: '0.78rem', color: 'var(--accent)', letterSpacing: '0.04em', fontWeight: 500, marginTop: 2 }}>for Self-Employed</div>
       </div>
 
       <div className="public-form-body">
@@ -148,9 +160,13 @@ export default function PublicLeadForm() {
                         </select>
                       )}
                       <input value={form.contact_value} onChange={e => set('contact_value', e.target.value)}
-                        placeholder={currentContactType ? `Ваш ${currentContactType.name}` : 'Контакт для связи'}
+                        onBlur={normalizeContactField}
+                        placeholder={getContactPlaceholder(currentContactType?.name)}
                         required style={{ ...fStyle, flex: 1 }} />
                     </div>
+                    {contactValueError && (
+                      <div style={{ fontSize: '0.82rem', color: 'var(--danger)', marginTop: 6 }}>{contactValueError}</div>
+                    )}
                   </FField>
 
                   {cfg.show_lead_source && cfg.lead_sources?.length > 0 && (
@@ -224,7 +240,7 @@ export default function PublicLeadForm() {
                           )}
                           {cfg.show_deadline && (
                             <FField label="Желаемый срок">
-                              <input type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} style={fStyle} />
+                              <DateInput value={form.deadline} onChange={v => set('deadline', v)} style={fStyle} />
                             </FField>
                           )}
                         </div>
@@ -238,8 +254,8 @@ export default function PublicLeadForm() {
                 {error && (
                   <div style={{ fontSize: '0.85rem', color: 'var(--danger)', background: 'var(--danger-bg)', padding: '8px 14px', borderRadius: 'var(--radius-sm)' }}>{error}</div>
                 )}
-                <button type="submit" disabled={loading || !form.name.trim() || !!nameError || !form.contact_value || !form.contact_type}
-                  style={{ width: '100%', padding: '13px', background: form.name.trim() && !nameError && form.contact_value ? 'var(--accent)' : 'var(--border-strong)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.95rem', fontWeight: 500, cursor: loading || !form.name.trim() || nameError || !form.contact_value ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)' }}>
+                <button type="submit" disabled={loading || !canSubmit}
+                  style={{ width: '100%', padding: '13px', background: canSubmit ? 'var(--accent)' : 'var(--border-strong)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.95rem', fontWeight: 500, cursor: loading || !canSubmit ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)' }}>
                   {loading ? 'Отправляем...' : cfg.button_text}
                 </button>
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>Нажимая кнопку, вы соглашаетесь на обработку персональных данных</p>

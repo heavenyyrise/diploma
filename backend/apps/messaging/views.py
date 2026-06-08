@@ -6,11 +6,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from apps.core.mixins import UserScopedMixin
 from apps.clients.models import Client
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderAttachment
 from .models import EmailTemplate, SentEmail
 from .serializers import EmailTemplateSerializer, SendEmailSerializer, SentEmailSerializer
 from .services import send_client_email
-from .validators import validate_attachment
+from .validators import validate_attachment, attachment_from_order_file, MAX_EMAIL_ATTACHMENTS
 
 
 class EmailTemplateViewSet(UserScopedMixin, viewsets.ModelViewSet):
@@ -22,7 +22,12 @@ class SendEmailView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
-        serializer = SendEmailSerializer(data=request.data)
+        payload = request.data.copy()
+        if hasattr(request.data, 'getlist'):
+            id_list = request.data.getlist('order_attachment_ids')
+            if id_list:
+                payload.setlist('order_attachment_ids', id_list)
+        serializer = SendEmailSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
         validated = serializer.validated_data
 
@@ -56,6 +61,31 @@ class SendEmailView(APIView):
                 attachments.append(validate_attachment(f))
             except ValueError as exc:
                 raise ValidationError({'attachments': str(exc)})
+
+        order_attachment_ids = validated.get('order_attachment_ids') or []
+        if order_attachment_ids and not order:
+            raise ValidationError({'order_attachment_ids': 'Укажите заказ для прикрепления файлов из заказа.'})
+
+        seen_ids = set()
+        for att_id in order_attachment_ids:
+            if att_id in seen_ids:
+                continue
+            seen_ids.add(att_id)
+            order_att = OrderAttachment.objects.filter(
+                pk=att_id,
+                kind='deliverable',
+                order=order,
+                order__user=request.user,
+            ).first()
+            if not order_att:
+                raise ValidationError({'order_attachment_ids': f'Финальный файл #{att_id} не найден.'})
+            try:
+                attachments.append(attachment_from_order_file(order_att.original_name, order_att.file))
+            except ValueError as exc:
+                raise ValidationError({'order_attachment_ids': str(exc)})
+
+        if len(attachments) > MAX_EMAIL_ATTACHMENTS:
+            raise ValidationError({'attachments': f'Максимум {MAX_EMAIL_ATTACHMENTS} вложений в одном письме.'})
 
         try:
             sent = send_client_email(

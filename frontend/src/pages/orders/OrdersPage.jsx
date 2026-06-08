@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
-import { Card, PageHeader, Badge, Button, Modal, Field, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatMoney, formatDate } from '../../components/ui'
+import { Card, PageHeader, Badge, Button, Modal, Field, DateInput, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatMoney, formatDate } from '../../components/ui'
 import ClientSelect from '../../components/ui/ClientSelect'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 import { getStatusDeadlineError } from '../../utils/orderStatus'
 import { CreateClientModal } from '../clients/ClientsPage'
+import { getTodayIso } from '../../utils/dateInput'
 
 const STATUSES = [
   { value: '', label: 'Все статусы' },
@@ -21,6 +22,7 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({ status: '', search: '', lead_source: '', deadline_from: '', deadline_to: '' })
+  const [deadlineFilterError, setDeadlineFilterError] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [servicesList, setServicesList] = useState([])
   const [leadSources, setLeadSources] = useState([])
@@ -50,6 +52,44 @@ export default function OrdersPage() {
   }, [])
 
   const setFilter = (k, v) => setFilters(p => ({ ...p, [k]: v }))
+
+  const clearDeadlineFilters = () => {
+    setFilters(p => ({ ...p, deadline_from: '', deadline_to: '' }))
+  }
+
+  const setDeadlineFilter = (field, value) => {
+    if (!value) {
+      setDeadlineFilterError(null)
+      setFilter(field, '')
+      return
+    }
+
+    const today = getTodayIso()
+
+    if (field === 'deadline_from') {
+      if (value > today) {
+        setDeadlineFilterError('Дата «от» не может быть в будущем')
+        setFilter('deadline_from', '')
+        return
+      }
+      if (filters.deadline_to && value > filters.deadline_to) {
+        setDeadlineFilterError('Дата «до» не может быть раньше даты «от»')
+        clearDeadlineFilters()
+        return
+      }
+      setDeadlineFilterError(null)
+      setFilter('deadline_from', value)
+      return
+    }
+
+    if (filters.deadline_from && value < filters.deadline_from) {
+      setDeadlineFilterError('Дата «до» не может быть раньше даты «от»')
+      clearDeadlineFilters()
+      return
+    }
+    setDeadlineFilterError(null)
+    setFilter('deadline_to', value)
+  }
 
   const columns = [
     { key: 'title', label: 'Название', render: r => <span style={{ fontWeight: 500 }}>{r.title}</span> },
@@ -84,14 +124,28 @@ export default function OrdersPage() {
                 {leadSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )},
-            { label: 'Дедлайн от', el: <input type="date" value={filters.deadline_from} onChange={e => setFilter('deadline_from', e.target.value)} style={inputStyle} /> },
-            { label: 'Дедлайн до', el: <input type="date" value={filters.deadline_to} onChange={e => setFilter('deadline_to', e.target.value)} style={inputStyle} /> },
           ].map(({ label, el, grow }) => (
             <div key={label} className={`filter-field${grow ? ' filter-field-grow' : ''}`}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
               {el}
             </div>
           ))}
+          <div className="filter-deadline-group">
+            <div className="filter-deadline-row">
+              {[
+                { label: 'Дедлайн от', el: <DateInput value={filters.deadline_from} onChange={v => setDeadlineFilter('deadline_from', v)} style={inputStyle} /> },
+                { label: 'Дедлайн до', el: <DateInput value={filters.deadline_to} onChange={v => setDeadlineFilter('deadline_to', v)} style={inputStyle} /> },
+              ].map(({ label, el }) => (
+                <div key={label} className="filter-field">
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
+                  {el}
+                </div>
+              ))}
+            </div>
+            {deadlineFilterError && (
+              <div className="filter-deadline-error">{deadlineFilterError}</div>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -222,7 +276,7 @@ export function CreateOrderModal({ open, onClose, onCreated, services, initialDa
           </div>
 
           <Field label="Дедлайн">
-            <input style={inputStyle} type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+            <DateInput style={inputStyle} value={form.deadline} onChange={v => set('deadline', v)} />
           </Field>
 
           <Field label="Описание / ТЗ">

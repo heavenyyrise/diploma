@@ -60,12 +60,17 @@ class OrderViewSet(UserScopedMixin, viewsets.ModelViewSet):
         order = self.get_object()
         if request.method == 'GET':
             qs = order.attachments.select_related('uploaded_by').all()
+            kind = request.query_params.get('kind')
+            if kind in ('document', 'deliverable'):
+                qs = qs.filter(kind=kind)
             return Response(OrderAttachmentSerializer(qs, many=True, context={'request': request}).data)
         upload_serializer = OrderAttachmentUploadSerializer(data=request.data)
         upload_serializer.is_valid(raise_exception=True)
         uploaded_file = upload_serializer.validated_data['file']
+        kind = upload_serializer.validated_data.get('kind', 'document')
         attachment = OrderAttachment.objects.create(
             order=order,
+            kind=kind,
             file=uploaded_file,
             original_name=uploaded_file.name,
             file_size=uploaded_file.size,

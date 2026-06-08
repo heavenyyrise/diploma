@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
-import { Card, Badge, Button, inputStyle, formatMoney, formatDate } from '../../components/ui'
+import { Card, Badge, Button, DateInput, inputStyle, formatMoney, formatDate } from '../../components/ui'
 import { applyServiceToggle, PriceAutoHint } from '../../utils/orderPrice'
 import { getStatusDeadlineError } from '../../utils/orderStatus'
 import { getUserFacingError } from '../../utils/userFacingError'
 import { findClientEmail } from '../../components/messaging/utils'
 import EmailHistoryBlock from '../../components/messaging/EmailHistoryBlock'
+import OrderFilesSection from '../../components/orders/OrderFilesSection'
 import { useConfirm } from '../../context/ConfirmContext'
 
 const STATUSES = [
@@ -24,13 +25,6 @@ function formatDateTime(d) {
   })
 }
 
-function formatFileSize(bytes) {
-  if (!bytes) return '0 B'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 export default function OrderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -44,10 +38,12 @@ export default function OrderDetail() {
   const [saving, setSaving] = useState(false)
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
   const [changelog, setChangelog] = useState([])
-  const [attachments, setAttachments] = useState([])
-  const [uploading, setUploading] = useState(false)
-  const [dragOver, setDragOver] = useState(false)
-  const [uploadError, setUploadError] = useState(null)
+  const [documents, setDocuments] = useState([])
+  const [deliverables, setDeliverables] = useState([])
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [uploadingDeliverable, setUploadingDeliverable] = useState(false)
+  const [uploadErrorDoc, setUploadErrorDoc] = useState(null)
+  const [uploadErrorDeliverable, setUploadErrorDeliverable] = useState(null)
   const [saveError, setSaveError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -56,8 +52,17 @@ export default function OrderDetail() {
     ordersApi.changelog(id).then(r => setChangelog(r.data)).catch(() => setChangelog([]))
   }
 
+  const loadDocuments = () => {
+    ordersApi.attachments(id, 'document').then(r => setDocuments(r.data)).catch(() => setDocuments([]))
+  }
+
+  const loadDeliverables = () => {
+    ordersApi.attachments(id, 'deliverable').then(r => setDeliverables(r.data)).catch(() => setDeliverables([]))
+  }
+
   const loadAttachments = () => {
-    ordersApi.attachments(id).then(r => setAttachments(r.data)).catch(() => setAttachments([]))
+    loadDocuments()
+    loadDeliverables()
   }
 
   const loadOrder = () => {
@@ -91,9 +96,6 @@ export default function OrderDetail() {
     clientsApi.list().then(r => {
       const items = r.data.results || r.data
       setClients(items)
-      // #region agent log
-      fetch('http://127.0.0.1:7391/ingest/57ceb7b4-465a-4cb5-97b8-f8cb49bcb906',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'fefc84'},body:JSON.stringify({sessionId:'fefc84',location:'OrderDetail.jsx:load',message:'order detail clients loaded',data:{loadedCount:items.length,apiCount:r.data.count??null},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
     }).catch(() => setClients([]))
     servicesApi.list().then(r => setServicesList(r.data.results || r.data)).catch(() => setServicesList([]))
     loadChangelog()
@@ -148,13 +150,16 @@ export default function OrderDetail() {
     navigate('/orders')
   }
 
-  const uploadFile = async (file) => {
+  const uploadFile = async (file, kind) => {
     if (!file) return
+    const setUploading = kind === 'deliverable' ? setUploadingDeliverable : setUploadingDoc
+    const setUploadError = kind === 'deliverable' ? setUploadErrorDeliverable : setUploadErrorDoc
+    const reload = kind === 'deliverable' ? loadDeliverables : loadDocuments
     setUploading(true)
     setUploadError(null)
     try {
-      await ordersApi.uploadAttachment(id, file)
-      loadAttachments()
+      await ordersApi.uploadAttachment(id, file, kind)
+      reload()
     } catch (err) {
       setUploadError(getUserFacingError(err, 'Не удалось загрузить файл'))
     } finally {
@@ -162,21 +167,8 @@ export default function OrderDetail() {
     }
   }
 
-  const handleFileInput = e => {
-    const file = e.target.files?.[0]
-    if (file) uploadFile(file)
-    e.target.value = ''
-  }
-
-  const handleDrop = e => {
-    e.preventDefault()
-    setDragOver(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file) uploadFile(file)
-  }
-
   const deleteAttachment = async (attachmentId) => {
-    if (!await confirm('Удалить вложение?')) return
+    if (!await confirm('Удалить файл?')) return
     await ordersApi.deleteAttachment(id, attachmentId)
     loadAttachments()
   }
@@ -215,7 +207,17 @@ export default function OrderDetail() {
       <div className="detail-header">
         <div className="detail-header-info">
           {editing
-            ? <input value={form.title} onChange={e => set('title', e.target.value)} className="title-input" style={{ ...inputStyle, fontSize: '1.4rem', fontFamily: 'var(--font-display)', fontWeight: 'var(--font-display-weight)' }} />
+            ? (
+              <div className="title-input-wrap">
+                <span className="title-input-mirror" aria-hidden="true">{form.title || ' '}</span>
+                <input
+                  value={form.title}
+                  onChange={e => set('title', e.target.value)}
+                  className="title-input"
+                  style={{ ...inputStyle, fontSize: '1.4rem', fontFamily: 'var(--font-display)', fontWeight: 'var(--font-display-weight)' }}
+                />
+              </div>
+            )
             : <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 'var(--font-display-weight)' }}>{order.title}</h1>
           }
           <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -245,75 +247,29 @@ export default function OrderDetail() {
           </Card>
 
           <Card style={{ padding: 24 }}>
-            <h3 style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Вложения</h3>
-            <div
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              style={{
-                border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius-sm)',
-                padding: '20px 16px',
-                textAlign: 'center',
-                background: dragOver ? 'var(--accent-light)' : 'var(--bg)',
-                marginBottom: 16,
-                transition: 'border-color 0.15s, background 0.15s',
-              }}
-            >
-              <input
-                type="file"
-                id="order-attachment-input"
-                accept=".jpg,.jpeg,.png,.pdf,.docx,.zip"
-                onChange={handleFileInput}
-                style={{ display: 'none' }}
-              />
-              <label htmlFor="order-attachment-input" style={{ cursor: uploading ? 'wait' : 'pointer', display: 'block' }}>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 4 }}>
-                  {uploading ? 'Загрузка...' : 'Перетащите файл сюда или нажмите для выбора'}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>JPG, PNG, PDF, DOCX, ZIP · до 10 МБ</div>
-              </label>
-            </div>
-            {uploadError && (
-              <div style={{ fontSize: '0.82rem', color: 'var(--danger, #dc2626)', marginBottom: 12 }}>{uploadError}</div>
-            )}
-            {attachments.length === 0
-              ? <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Вложений пока нет</div>
-              : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {attachments.map(a => (
-                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)' }}>
-                      {a.is_image
-                        ? (
-                          <a href={a.file_url} target="_blank" rel="noopener noreferrer">
-                            <img src={a.file_url} alt={a.original_name} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
-                          </a>
-                        )
-                        : (
-                          <div style={{ width: 56, height: 56, borderRadius: 6, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.4rem' }}>📄</div>
-                        )
-                      }
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <a href={a.file_url} download={a.original_name} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.875rem', color: 'var(--accent)', textDecoration: 'none', wordBreak: 'break-word', display: 'block' }}>
-                          {a.original_name}
-                        </a>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                          {formatFileSize(a.file_size)} · {formatDateTime(a.uploaded_at)}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => deleteAttachment(a.id)}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem', padding: '4px 8px', flexShrink: 0 }}
-                        title="Удалить"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )
-            }
+            <OrderFilesSection
+              title="Вложения"
+              hint="ТЗ, счета, референсы и прочие материалы"
+              inputId="order-document-input"
+              items={documents}
+              uploading={uploadingDoc}
+              uploadError={uploadErrorDoc}
+              onUpload={file => uploadFile(file, 'document')}
+              onDelete={deleteAttachment}
+            />
+          </Card>
+
+          <Card style={{ padding: 24 }}>
+            <OrderFilesSection
+              title="Финальные файлы"
+              hint="Результат работы — автоматически подставится в письмо клиенту"
+              inputId="order-deliverable-input"
+              items={deliverables}
+              uploading={uploadingDeliverable}
+              uploadError={uploadErrorDeliverable}
+              onUpload={file => uploadFile(file, 'deliverable')}
+              onDelete={deleteAttachment}
+            />
           </Card>
 
           {editing && servicesList.length > 0 && (
@@ -418,22 +374,9 @@ export default function OrderDetail() {
 
               {!editing && order.services_detail?.length > 0 && (
                 <Row label="Услуги">
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, width: '100%' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {order.services_detail.map(s => (
-                      <span
-                        key={s.id}
-                        style={{
-                          display: 'inline-block',
-                          maxWidth: '100%',
-                          fontSize: '0.78rem',
-                          lineHeight: 1.4,
-                          background: 'var(--accent-light)',
-                          color: 'var(--accent-dark)',
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          wordBreak: 'break-word',
-                        }}
-                      >
+                      <span key={s.id} style={{ fontSize: '0.875rem', lineHeight: 1.4, wordBreak: 'break-word' }}>
                         {s.name}
                       </span>
                     ))}
@@ -455,7 +398,7 @@ export default function OrderDetail() {
 
               <Row label="Дедлайн">
                 {editing
-                  ? <input type="date" value={form.deadline || ''} onChange={e => set('deadline', e.target.value)} style={inputStyle} />
+                  ? <DateInput value={form.deadline || ''} onChange={v => set('deadline', v)} style={inputStyle} />
                   : <span style={{ fontSize: '0.875rem' }}>{formatDate(order.deadline)}</span>
                 }
               </Row>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { messaging as messagingApi } from '../../api'
+import { messaging as messagingApi, orders as ordersApi } from '../../api'
 import { Button } from '../ui'
 import RecipientInput from './RecipientInput'
 import { EMPTY_RECIPIENT } from './utils'
@@ -17,7 +17,8 @@ export default function ComposeEmailForm({
   const [toEmailOverride, setToEmailOverride] = useState('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
-  const [attachments, setAttachments] = useState([])
+  const [manualAttachments, setManualAttachments] = useState([])
+  const [orderAttachments, setOrderAttachments] = useState([])
   const [sending, setSending] = useState(false)
   const [error, setError] = useState(null)
   const [templateOpen, setTemplateOpen] = useState(false)
@@ -39,6 +40,16 @@ export default function ComposeEmailForm({
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
 
+  useEffect(() => {
+    if (!orderId) {
+      setOrderAttachments([])
+      return
+    }
+    ordersApi.attachments(orderId, 'deliverable')
+      .then(r => setOrderAttachments(r.data))
+      .catch(() => setOrderAttachments([]))
+  }, [orderId])
+
   const resolveToEmail = () => {
     if (toEmailOverride.trim()) return toEmailOverride.trim()
     if (recipient.email?.includes('@')) return recipient.email.trim()
@@ -51,16 +62,19 @@ export default function ComposeEmailForm({
     setTemplateOpen(false)
   }
 
+  const totalAttachments = orderAttachments.length + manualAttachments.length
+
   const addFiles = files => {
-    const next = [...attachments]
+    const next = [...manualAttachments]
     for (const f of files) {
-      if (next.length >= 5) break
+      if (orderAttachments.length + next.length >= 5) break
       next.push(f)
     }
-    setAttachments(next)
+    setManualAttachments(next)
   }
 
-  const removeFile = idx => setAttachments(p => p.filter((_, i) => i !== idx))
+  const removeManualFile = idx => setManualAttachments(p => p.filter((_, i) => i !== idx))
+  const removeOrderFile = id => setOrderAttachments(p => p.filter(a => a.id !== id))
 
   const send = async () => {
     const toEmail = resolveToEmail()
@@ -77,7 +91,8 @@ export default function ComposeEmailForm({
       }
       if (orderId) payload.order_id = orderId
       if (clientId || recipient.clientId) payload.client_id = clientId || recipient.clientId
-      if (attachments.length) payload.attachments = attachments
+      if (manualAttachments.length) payload.attachments = manualAttachments
+      if (orderAttachments.length) payload.order_attachment_ids = orderAttachments.map(a => a.id)
 
       const r = await messagingApi.send(payload)
       if (r.data.status === 'failed') {
@@ -86,7 +101,8 @@ export default function ComposeEmailForm({
       }
       setSubject('')
       setBody('')
-      setAttachments([])
+      setManualAttachments([])
+      setOrderAttachments([])
       setRecipient(EMPTY_RECIPIENT)
       setToEmailOverride('')
       onSent?.(r.data)
@@ -155,17 +171,25 @@ export default function ComposeEmailForm({
         />
       </div>
 
-      {attachments.length > 0 && (
+      {totalAttachments > 0 && (
         <div style={{ padding: '0 24px 12px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {attachments.map((f, i) => (
-            <span key={i} style={{
-              fontSize: '0.78rem', padding: '4px 10px', borderRadius: 20,
-              background: 'var(--bg)', border: '1px solid var(--border)',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
-              {f.name}
-              <button type="button" onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>×</button>
-            </span>
+          {orderAttachments.map(a => (
+            <AttachmentChip
+              key={`order-${a.id}`}
+              name={a.original_name}
+              isImage={a.is_image}
+              previewUrl={a.file_url}
+              badge="из заказа"
+              accent
+              onRemove={() => removeOrderFile(a.id)}
+            />
+          ))}
+          {manualAttachments.map((f, i) => (
+            <ManualAttachmentChip
+              key={`manual-${i}`}
+              file={f}
+              onRemove={() => removeManualFile(i)}
+            />
           ))}
         </div>
       )}
@@ -221,6 +245,89 @@ export default function ComposeEmailForm({
         </Button>
       </div>
     </div>
+  )
+}
+
+function isImageName(name) {
+  return /\.(jpe?g|png)$/i.test(name || '')
+}
+
+function AttachmentThumb({ name, isImage, previewUrl }) {
+  if (isImage && previewUrl) {
+    return (
+      <img
+        src={previewUrl}
+        alt={name}
+        style={{
+          width: 36, height: 36, objectFit: 'cover', borderRadius: 6,
+          border: '1px solid var(--border)', flexShrink: 0,
+        }}
+      />
+    )
+  }
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: 6, background: 'var(--accent-light)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0, fontSize: '1rem',
+    }}>
+      📄
+    </div>
+  )
+}
+
+function AttachmentChip({ name, isImage, previewUrl, badge, accent, onRemove }) {
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      padding: '6px 10px 6px 6px', borderRadius: 'var(--radius-sm)',
+      background: accent ? 'var(--accent-light)' : 'var(--bg)',
+      border: '1px solid var(--border)', maxWidth: 280,
+    }}>
+      <AttachmentThumb name={name} isImage={isImage} previewUrl={previewUrl} />
+      <span style={{
+        fontSize: '0.78rem', lineHeight: 1.3, wordBreak: 'break-word',
+        flex: 1, minWidth: 0,
+      }}>
+        {name}
+        {badge && (
+          <span style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 1 }}>
+            {badge}
+          </span>
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0, fontSize: '1.1rem', padding: '0 2px' }}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+function ManualAttachmentChip({ file, onRemove }) {
+  const isImage = isImageName(file.name) || file.type?.startsWith('image/')
+  const [previewUrl, setPreviewUrl] = useState(null)
+
+  useEffect(() => {
+    if (!isImage) {
+      setPreviewUrl(null)
+      return undefined
+    }
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file, isImage])
+
+  return (
+    <AttachmentChip
+      name={file.name}
+      isImage={isImage}
+      previewUrl={previewUrl}
+      onRemove={onRemove}
+    />
   )
 }
 

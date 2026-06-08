@@ -3,7 +3,7 @@ import { leads as leadsApi, services as servicesApi, orders as ordersApi } from 
 import { useAuth } from '../../context/AuthContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { publicFormUrl } from '../../utils/publicFormUrl'
-import { Card, PageHeader, Badge, Button, Modal, inputStyle, formatDate, formatMoney, EmptyState, Pagination, PAGE_SIZE } from '../../components/ui'
+import { Card, PageHeader, Badge, Button, Modal, DateInput, inputStyle, formatDate, formatMoney, EmptyState, Pagination, PAGE_SIZE } from '../../components/ui'
 import ClientSelect from '../../components/ui/ClientSelect'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 
@@ -275,7 +275,7 @@ function EditOrderModal({ orderId, clientId, initial, services, onClose }) {
           </div>
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>Дедлайн</label>
-            <input type="date" style={inputStyle} value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+            <DateInput style={inputStyle} value={form.deadline} onChange={v => set('deadline', v)} />
           </div>
         </div>
         <div>

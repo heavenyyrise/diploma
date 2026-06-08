@@ -4,6 +4,7 @@ import { clients as clientsApi } from '../../api'
 import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatDate, formatMoney } from '../../components/ui'
 import ContactsEditor from '../../components/ui/ContactsEditor'
 import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
+import { hasContactErrors, normalizeContacts } from '../../utils/contactValue'
 
 export default function ClientsPage() {
   const [data, setData] = useState([])
@@ -106,16 +107,18 @@ export function CreateClientModal({ open, onClose, onCreated, leadSources = [], 
   }, [open])
 
   const nameError = getClientNameError(form.name)
+  const contactsError = hasContactErrors(contacts, contactTypes)
 
   const handle = async () => {
-    if (!form.name.trim() || nameError) return
+    if (!form.name.trim() || nameError || contactsError) return
     setLoading(true)
     try {
+      const normalizedContacts = normalizeContacts(contacts, contactTypes)
       const payload = {
         name: form.name,
         notes: form.notes,
         is_regular: form.is_regular,
-        contacts: contacts.filter(c => c.value),
+        contacts: normalizedContacts.filter(c => c.value),
       }
       if (form.lead_source) payload.lead_source = form.lead_source
       await clientsApi.create(payload)
@@ -149,7 +152,7 @@ export function CreateClientModal({ open, onClose, onCreated, leadSources = [], 
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={onClose}>Отмена</Button>
-          <Button onClick={handle} disabled={loading || !form.name.trim() || !!nameError}>{loading ? '...' : 'Добавить'}</Button>
+          <Button onClick={handle} disabled={loading || !form.name.trim() || !!nameError || contactsError}>{loading ? '...' : 'Добавить'}</Button>
         </div>
       </div>
     </Modal>

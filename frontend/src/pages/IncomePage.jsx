@@ -101,21 +101,29 @@ export default function IncomePage() {
   const [byService, setByService] = useState([])
   const [year, setYear] = useState(new Date().getFullYear())
   const [years, setYears] = useState([])
+  const [loadError, setLoadError] = useState(null)
+
+  const handleLoadError = () => setLoadError('Не удалось загрузить аналитику. Обновите страницу.')
 
   useEffect(() => {
-    analytics.years().then(r => setYears(r.data.length ? r.data : [new Date().getFullYear()]))
-    analytics.byLeadSource().then(r => setByLeadSource(r.data))
+    analytics.years()
+      .then(r => setYears(r.data.length ? r.data : [new Date().getFullYear()]))
+      .catch(handleLoadError)
+    analytics.byLeadSource()
+      .then(r => setByLeadSource(r.data))
+      .catch(handleLoadError)
   }, [])
 
   useEffect(() => {
-    analytics.summary({ period }).then(r => setSummary(r.data))
-    analytics.byService({ period }).then(r => setByService(r.data))
-    analytics.byClientType({ period }).then(r => setByClientType(r.data))
-    analytics.newClientsByLeadSource({ period }).then(r => setNewClients(r.data))
+    setLoadError(null)
+    analytics.summary({ period }).then(r => setSummary(r.data)).catch(handleLoadError)
+    analytics.byService({ period }).then(r => setByService(r.data)).catch(handleLoadError)
+    analytics.byClientType({ period }).then(r => setByClientType(r.data)).catch(handleLoadError)
+    analytics.newClientsByLeadSource({ period }).then(r => setNewClients(r.data)).catch(handleLoadError)
   }, [period])
 
   useEffect(() => {
-    analytics.byMonth({ year }).then(r => setByMonth(r.data))
+    analytics.byMonth({ year }).then(r => setByMonth(r.data)).catch(handleLoadError)
   }, [year])
 
   return (
@@ -125,6 +133,12 @@ export default function IncomePage() {
         subtitle="Аналитика и статистика"
         action={<PeriodSelect value={period} onChange={setPeriod} />}
       />
+
+      {loadError && (
+        <Card style={{ padding: '12px 16px', marginBottom: 16, borderColor: 'var(--danger)', background: 'var(--danger-bg)' }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--danger)' }}>{loadError}</div>
+        </Card>
+      )}
 
       <div className="grid-stats-3" style={{ marginBottom: 28 }}>
         <StatCard
@@ -172,11 +186,11 @@ export default function IncomePage() {
           ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: '0.875rem' }}>Нет данных</div>
           : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {byService.slice(0, 6).map(s => {
+              {byService.slice(0, 6).map((s, index) => {
                 const pct = (s.total / (byService[0]?.total || 1)) * 100
-                const color = getServiceColor(s.service)
+                const color = getServiceColor(s.service, s.service_id, index)
                 return (
-                  <div key={s.service}>
+                  <div key={s.service_id ?? s.service}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
                       <span style={{ color: 'var(--text-secondary)' }}>{s.service}</span>
                       <span style={{ fontWeight: 500 }}>{formatMoney(s.total)}</span>

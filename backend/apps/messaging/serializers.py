@@ -16,6 +16,9 @@ class SendEmailSerializer(serializers.Serializer):
     order_id = serializers.IntegerField(required=False, allow_null=True)
     client_id = serializers.IntegerField(required=False, allow_null=True)
     template_id = serializers.IntegerField(required=False, allow_null=True)
+    order_attachment_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list,
+    )
 
 
 class SentEmailSerializer(serializers.ModelSerializer):

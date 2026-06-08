@@ -4,6 +4,7 @@ import { clients as clientsApi } from '../../api'
 import { Card, Badge, Button, inputStyle, formatMoney, formatDate } from '../../components/ui'
 import ContactsEditor from '../../components/ui/ContactsEditor'
 import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
+import { hasContactErrors, normalizeContacts } from '../../utils/contactValue'
 import { getUserFacingError } from '../../utils/userFacingError'
 import { findClientEmail } from '../../components/messaging/utils'
 import EmailHistoryBlock from '../../components/messaging/EmailHistoryBlock'
@@ -44,22 +45,24 @@ export default function ClientDetail() {
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   const nameError = editing ? getClientNameError(form.name || '') : null
+  const contactsError = editing ? hasContactErrors(contacts, contactTypes) : false
 
   useEffect(() => {
     if (editing) setSaveError(null)
-  }, [form.name, editing])
+  }, [form.name, contacts, editing])
 
   const save = async () => {
-    if (nameError || !form.name?.trim()) return
+    if (nameError || contactsError || !form.name?.trim()) return
     setSaving(true)
     setSaveError(null)
     try {
+      const normalizedContacts = normalizeContacts(contacts, contactTypes)
       const payload = {
         name: form.name,
         lead_source: form.lead_source || null,
         notes: form.notes,
         is_regular: form.is_regular,
-        contacts: contacts.filter(c => c.value),
+        contacts: normalizedContacts.filter(c => c.value),
       }
       const r = await clientsApi.update(id, payload)
       setClient(r.data)
@@ -121,7 +124,7 @@ export default function ClientDetail() {
             <Button variant="secondary" onClick={writeToClient}>Написать клиенту</Button>
           )}
           {editing
-            ? <><Button variant="ghost" onClick={() => setEditing(false)}>Отмена</Button><Button onClick={save} disabled={saving || !!nameError || !form.name?.trim()}>{saving ? '...' : 'Сохранить'}</Button></>
+            ? <><Button variant="ghost" onClick={() => setEditing(false)}>Отмена</Button><Button onClick={save} disabled={saving || !!nameError || contactsError || !form.name?.trim()}>{saving ? '...' : 'Сохранить'}</Button></>
             : <><Button variant="ghost" onClick={() => setEditing(true)}>Редактировать</Button><Button variant="danger" onClick={del}>Удалить</Button></>
           }
         </div>

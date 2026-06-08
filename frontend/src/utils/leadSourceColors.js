@@ -41,15 +41,23 @@ const FALLBACK_PALETTE = [
 function colorByName(label, map = {}) {
   const key = (label || '').trim().toLowerCase()
   if (map[key]) return map[key]
-  let hash = 0
-  for (let i = 0; i < key.length; i++) hash = (hash + key.charCodeAt(i) * (i + 1)) % FALLBACK_PALETTE.length
-  return FALLBACK_PALETTE[hash]
+  let hash = 5381
+  for (let i = 0; i < key.length; i++) hash = ((hash << 5) + hash) ^ key.charCodeAt(i)
+  return FALLBACK_PALETTE[Math.abs(hash) % FALLBACK_PALETTE.length]
 }
 
 export function getLeadSourceColor(label) {
   return colorByName(label, LEAD_SOURCE_COLORS)
 }
 
-export function getServiceColor(name) {
+export function getServiceColor(name, serviceId, listIndex) {
+  const key = (name || '').trim().toLowerCase()
+  if (key === 'без услуги') return PALETTE.neutral
+  if (listIndex != null && listIndex >= 0) {
+    return FALLBACK_PALETTE[listIndex % FALLBACK_PALETTE.length]
+  }
+  if (serviceId != null) {
+    return FALLBACK_PALETTE[(serviceId - 1) % FALLBACK_PALETTE.length]
+  }
   return colorByName(name, { 'без услуги': PALETTE.neutral })
 }

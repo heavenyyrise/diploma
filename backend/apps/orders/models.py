@@ -90,9 +90,18 @@ class OrderChangeLog(models.Model):
 
 
 class OrderAttachment(models.Model):
+    KIND_CHOICES = [
+        ('document', 'Документ'),
+        ('deliverable', 'Финальный'),
+    ]
+
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE,
         related_name='attachments', verbose_name='Заказ',
+    )
+    kind = models.CharField(
+        max_length=20, choices=KIND_CHOICES, default='document',
+        verbose_name='Тип',
     )
     file = models.FileField(upload_to='orders/%Y/%m/', verbose_name='Файл')
     original_name = models.CharField(max_length=255, verbose_name='Имя файла')
