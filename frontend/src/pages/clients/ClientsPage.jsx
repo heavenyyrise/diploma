@@ -1,16 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clients as clientsApi } from '../../api'
-import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatDate, formatMoney } from '../../components/ui'
+import { Card, PageHeader, Button, Modal, Field, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatDate, formatMoney, PageLoadPlaceholder } from '../../components/ui'
 import ContactsEditor from '../../components/ui/ContactsEditor'
 import { sanitizeClientName, getClientNameError } from '../../utils/clientName'
 import { hasContactErrors, normalizeContacts } from '../../utils/contactValue'
+import { usePageCache } from '../../hooks/usePageCache'
 
 export default function ClientsPage() {
-  const [data, setData] = useState([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [incomeSort, setIncomeSort] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -20,18 +18,25 @@ export default function ClientsPage() {
 
   useEffect(() => { setPage(1) }, [search, incomeSort])
 
-  const load = useCallback(() => {
-    setLoading(true)
+  const cacheKey = useMemo(
+    () => `clients:${page}:${search}:${incomeSort}`,
+    [page, search, incomeSort],
+  )
+
+  const loader = useCallback(async () => {
     const params = { ordering: incomeSort || '-created_at', page }
     if (search) params.search = search
-    clientsApi.list(params).then(r => {
-      const payload = r.data
-      setData(payload.results || payload)
-      setTotal(payload.count ?? (payload.results || payload).length)
-    }).finally(() => setLoading(false))
+    const r = await clientsApi.list(params)
+    const payload = r.data
+    return {
+      items: payload.results || payload,
+      total: payload.count ?? (payload.results || payload).length,
+    }
   }, [search, incomeSort, page])
 
-  useEffect(() => { load() }, [load])
+  const { data, loading, refresh } = usePageCache(cacheKey, loader)
+  const list = data?.items ?? []
+  const total = data?.total ?? 0
   useEffect(() => {
     clientsApi.leadSources().then(r => setLeadSources(r.data.results || r.data))
     clientsApi.contactTypes().then(r => setContactTypes(r.data.results || r.data))
@@ -81,14 +86,14 @@ export default function ClientsPage() {
         </div>
       </Card>
       <Card>
-        {loading ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>
+        {loading && !list.length ? <PageLoadPlaceholder rows={4} />
           : <>
-            <Table columns={columns} data={data} onRowClick={r => navigate(`/clients/${r.id}`)} emptyState={<EmptyState icon="👥" title="Клиентов нет" subtitle="Добавьте первого клиента" action={<Button onClick={() => setShowCreate(true)}>+ Новый клиент</Button>} />} />
+            <Table columns={columns} data={list} onRowClick={r => navigate(`/clients/${r.id}`)} emptyState={<EmptyState icon="👥" title="Клиентов нет" subtitle="Добавьте первого клиента" action={<Button onClick={() => setShowCreate(true)}>+ Новый клиент</Button>} />} />
             <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
           </>
         }
       </Card>
-      <CreateClientModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); load() }} leadSources={leadSources} contactTypes={contactTypes} />
+      <CreateClientModal open={showCreate} onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); refresh({ silent: true }) }} leadSources={leadSources} contactTypes={contactTypes} />
     </div>
   )
 }

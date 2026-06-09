@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orders as ordersApi, clients as clientsApi, services as servicesApi } from '../../api'
-import { Card, PageHeader, Badge, Button, Modal, Field, DateInput, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatMoney, formatDate } from '../../components/ui'
+import { Card, PageHeader, Badge, Button, Modal, Field, DateInput, inputStyle, Table, EmptyState, Pagination, PAGE_SIZE, formatMoney, formatDate, PageLoadPlaceholder } from '../../components/ui'
 import ClientSelect from '../../components/ui/ClientSelect'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
 import { getStatusDeadlineError } from '../../utils/orderStatus'
 import { CreateClientModal } from '../clients/ClientsPage'
 import { getTodayIso } from '../../utils/dateInput'
+import { usePageCache, readPageCache, writePageCache } from '../../hooks/usePageCache'
 
 const STATUSES = [
   { value: '', label: 'Все статусы' },
@@ -16,51 +17,118 @@ const STATUSES = [
   { value: 'cancelled', label: 'Отменён' },
 ]
 
+const DEFAULT_FILTERS = { status: '', search: '', lead_source: '', deadline_from: '', deadline_to: '' }
+
+const OrdersFilterBar = memo(function OrdersFilterBar({
+  filters,
+  leadSources,
+  deadlineFilterError,
+  onFilterChange,
+  onDeadlineFilter,
+}) {
+  return (
+    <Card style={{ padding: '16px 20px', marginBottom: 20 }}>
+      <div className="filter-bar">
+        {[
+          { label: 'Поиск', grow: true, el: <input value={filters.search} onChange={e => onFilterChange('search', e.target.value)} placeholder="Название, клиент..." style={inputStyle} /> },
+          { label: 'Статус', el: <select value={filters.status} onChange={e => onFilterChange('status', e.target.value)} style={inputStyle}>{STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select> },
+          { label: 'Источник клиента', el: (
+            <select value={filters.lead_source} onChange={e => onFilterChange('lead_source', e.target.value)} style={inputStyle}>
+              <option value="">Все источники</option>
+              {leadSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )},
+        ].map(({ label, el, grow }) => (
+          <div key={label} className={`filter-field${grow ? ' filter-field-grow' : ''}`}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
+            {el}
+          </div>
+        ))}
+        <div className="filter-deadline-group">
+          <div className="filter-deadline-row">
+            {[
+              { label: 'Дедлайн от', el: <DateInput value={filters.deadline_from} onChange={v => onDeadlineFilter('deadline_from', v)} style={inputStyle} /> },
+              { label: 'Дедлайн до', el: <DateInput value={filters.deadline_to} onChange={v => onDeadlineFilter('deadline_to', v)} style={inputStyle} /> },
+            ].map(({ label, el }) => (
+              <div key={label} className="filter-field">
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
+                {el}
+              </div>
+            ))}
+          </div>
+          {deadlineFilterError && (
+            <div className="filter-deadline-error">{deadlineFilterError}</div>
+          )}
+        </div>
+      </div>
+    </Card>
+  )
+})
+
 export default function OrdersPage() {
-  const [data, setData] = useState([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ status: '', search: '', lead_source: '', deadline_from: '', deadline_to: '' })
+  const [page, setPage] = useState(() => readPageCache('orders:page') ?? 1)
+  const [filters, setFilters] = useState(() => readPageCache('orders:filters') ?? DEFAULT_FILTERS)
   const [deadlineFilterError, setDeadlineFilterError] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [servicesList, setServicesList] = useState([])
-  const [leadSources, setLeadSources] = useState([])
   const navigate = useNavigate()
 
-  useEffect(() => { setPage(1) }, [filters])
+  useEffect(() => { writePageCache('orders:page', page) }, [page])
+  useEffect(() => { writePageCache('orders:filters', filters) }, [filters])
 
-  const load = useCallback(() => {
+  const skipPageReset = useRef(true)
+  useEffect(() => {
+    if (skipPageReset.current) {
+      skipPageReset.current = false
+      return
+    }
+    setPage(1)
+  }, [filters])
+
+  const metaLoader = useCallback(async () => {
+    const [servicesRes, sourcesRes] = await Promise.all([
+      servicesApi.list(),
+      clientsApi.leadSources(),
+    ])
+    return {
+      services: servicesRes.data.results || servicesRes.data,
+      leadSources: sourcesRes.data.results || sourcesRes.data,
+    }
+  }, [])
+
+  const { data: meta } = usePageCache('orders:meta', metaLoader)
+  const servicesList = meta?.services ?? []
+  const leadSources = meta?.leadSources ?? []
+
+  const cacheKey = useMemo(
+    () => `orders:${page}:${filters.status}:${filters.search}:${filters.lead_source}:${filters.deadline_from}:${filters.deadline_to}`,
+    [page, filters],
+  )
+
+  const loader = useCallback(async () => {
     const p = { page }
     if (filters.status) p.status = filters.status
     if (filters.search) p.search = filters.search
     if (filters.lead_source) p.lead_source = filters.lead_source
     if (filters.deadline_from) p.deadline_from = filters.deadline_from
     if (filters.deadline_to) p.deadline_to = filters.deadline_to
-    setLoading(true)
-    ordersApi.list(p).then(r => {
-      const payload = r.data
-      setData(payload.results || payload)
-      setTotal(payload.count ?? (payload.results || payload).length)
-    }).finally(() => setLoading(false))
+    const r = await ordersApi.list(p)
+    const payload = r.data
+    return {
+      items: payload.results || payload,
+      total: payload.count ?? (payload.results || payload).length,
+    }
   }, [filters, page])
 
-  useEffect(() => { load() }, [load])
-  useEffect(() => {
-    servicesApi.list().then(r => setServicesList(r.data.results || r.data))
-    clientsApi.leadSources().then(r => setLeadSources(r.data.results || r.data))
-  }, [])
+  const { data, loading, refresh } = usePageCache(cacheKey, loader)
+  const list = data?.items ?? []
+  const total = data?.total ?? 0
 
-  const setFilter = (k, v) => setFilters(p => ({ ...p, [k]: v }))
+  const setFilter = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), [])
 
-  const clearDeadlineFilters = () => {
-    setFilters(p => ({ ...p, deadline_from: '', deadline_to: '' }))
-  }
-
-  const setDeadlineFilter = (field, value) => {
+  const setDeadlineFilter = useCallback((field, value) => {
     if (!value) {
       setDeadlineFilterError(null)
-      setFilter(field, '')
+      setFilters(p => ({ ...p, [field]: '' }))
       return
     }
 
@@ -69,27 +137,29 @@ export default function OrdersPage() {
     if (field === 'deadline_from') {
       if (value > today) {
         setDeadlineFilterError('Дата «от» не может быть в будущем')
-        setFilter('deadline_from', '')
+        setFilters(p => ({ ...p, deadline_from: '' }))
         return
       }
-      if (filters.deadline_to && value > filters.deadline_to) {
-        setDeadlineFilterError('Дата «до» не может быть раньше даты «от»')
-        clearDeadlineFilters()
-        return
-      }
-      setDeadlineFilterError(null)
-      setFilter('deadline_from', value)
+      setFilters(p => {
+        if (p.deadline_to && value > p.deadline_to) {
+          setDeadlineFilterError('Дата «до» не может быть раньше даты «от»')
+          return { ...p, deadline_from: '', deadline_to: '' }
+        }
+        setDeadlineFilterError(null)
+        return { ...p, deadline_from: value }
+      })
       return
     }
 
-    if (filters.deadline_from && value < filters.deadline_from) {
-      setDeadlineFilterError('Дата «до» не может быть раньше даты «от»')
-      clearDeadlineFilters()
-      return
-    }
-    setDeadlineFilterError(null)
-    setFilter('deadline_to', value)
-  }
+    setFilters(p => {
+      if (p.deadline_from && value < p.deadline_from) {
+        setDeadlineFilterError('Дата «до» не может быть раньше даты «от»')
+        return { ...p, deadline_from: '', deadline_to: '' }
+      }
+      setDeadlineFilterError(null)
+      return { ...p, deadline_to: value }
+    })
+  }, [])
 
   const columns = [
     { key: 'title', label: 'Название', render: r => <span style={{ fontWeight: 500 }}>{r.title}</span> },
@@ -113,47 +183,19 @@ export default function OrdersPage() {
     <div className="page">
       <PageHeader title="Заказы" subtitle="Все ваши проекты" action={<Button onClick={() => setShowCreate(true)}>+ Новый заказ</Button>} />
 
-      <Card style={{ padding: '16px 20px', marginBottom: 20 }}>
-        <div className="filter-bar">
-          {[
-            { label: 'Поиск', grow: true, el: <input value={filters.search} onChange={e => setFilter('search', e.target.value)} placeholder="Название, клиент..." style={inputStyle} /> },
-            { label: 'Статус', el: <select value={filters.status} onChange={e => setFilter('status', e.target.value)} style={inputStyle}>{STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select> },
-            { label: 'Источник клиента', el: (
-              <select value={filters.lead_source} onChange={e => setFilter('lead_source', e.target.value)} style={inputStyle}>
-                <option value="">Все источники</option>
-                {leadSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            )},
-          ].map(({ label, el, grow }) => (
-            <div key={label} className={`filter-field${grow ? ' filter-field-grow' : ''}`}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
-              {el}
-            </div>
-          ))}
-          <div className="filter-deadline-group">
-            <div className="filter-deadline-row">
-              {[
-                { label: 'Дедлайн от', el: <DateInput value={filters.deadline_from} onChange={v => setDeadlineFilter('deadline_from', v)} style={inputStyle} /> },
-                { label: 'Дедлайн до', el: <DateInput value={filters.deadline_to} onChange={v => setDeadlineFilter('deadline_to', v)} style={inputStyle} /> },
-              ].map(({ label, el }) => (
-                <div key={label} className="filter-field">
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
-                  {el}
-                </div>
-              ))}
-            </div>
-            {deadlineFilterError && (
-              <div className="filter-deadline-error">{deadlineFilterError}</div>
-            )}
-          </div>
-        </div>
-      </Card>
+      <OrdersFilterBar
+        filters={filters}
+        leadSources={leadSources}
+        deadlineFilterError={deadlineFilterError}
+        onFilterChange={setFilter}
+        onDeadlineFilter={setDeadlineFilter}
+      />
 
       <Card>
-        {loading
-          ? <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>
+        {loading && !list.length
+          ? <PageLoadPlaceholder rows={4} />
           : <>
-            <Table columns={columns} data={data} onRowClick={r => navigate(`/orders/${r.id}`)}
+            <Table columns={columns} data={list} onRowClick={r => navigate(`/orders/${r.id}`)}
               emptyState={<EmptyState icon="📋" title="Заказов нет" subtitle="Создайте первый заказ" action={<Button onClick={() => setShowCreate(true)}>+ Новый заказ</Button>} />} />
             <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
           </>
@@ -163,7 +205,7 @@ export default function OrdersPage() {
       <CreateOrderModal
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={() => { setShowCreate(false); load() }}
+        onCreated={() => { setShowCreate(false); refresh({ silent: true }) }}
         services={servicesList}
       />
     </div>

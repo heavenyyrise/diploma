@@ -3,7 +3,6 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useLeads } from '../../context/LeadsContext'
 import LeadToast from '../ui/LeadToast'
-
 const APP_TITLE = 'Web Application'
 const APP_SUBTITLE = 'for Self-Employed'
 

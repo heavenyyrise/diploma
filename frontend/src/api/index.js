@@ -99,6 +99,7 @@ export const leads = {
   delete: id => api.delete(`/leads/${id}/`),
   accept: id => api.post(`/leads/${id}/accept/`),
   reject: (id, d) => api.post(`/leads/${id}/reject/`, d),
+  clearRejected: () => api.post('/leads/clear-rejected/'),
   createPublic: (userId, data) => axios.post('/api/leads/public/', { ...data, user_id: userId }),
 }
 export const formSettings = {

@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { leads as leadsApi, services as servicesApi, orders as ordersApi } from '../../api'
 import { useAuth } from '../../context/AuthContext'
 import { useConfirm } from '../../context/ConfirmContext'
 import { publicFormUrl } from '../../utils/publicFormUrl'
-import { Card, PageHeader, Badge, Button, Modal, DateInput, inputStyle, formatDate, formatMoney, EmptyState, Pagination, PAGE_SIZE } from '../../components/ui'
+import { Card, PageHeader, Badge, Button, Modal, DateInput, inputStyle, formatDate, formatMoney, EmptyState, Pagination, PAGE_SIZE, PageLoadPlaceholder } from '../../components/ui'
 import ClientSelect from '../../components/ui/ClientSelect'
 import { applyServiceToggle, calcServicesPrice, PriceAutoHint } from '../../utils/orderPrice'
+import { usePageCache } from '../../hooks/usePageCache'
 
 const STATUS_COLORS = {
   new: 'var(--warning)',
@@ -24,44 +25,39 @@ export default function LeadsPage() {
   const { user } = useAuth()
   const confirm = useConfirm()
   const formLink = publicFormUrl(user?.id)
-  const [data, setData] = useState([])
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('')
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [orderData, setOrderData] = useState(null)
   const [servicesList, setServicesList] = useState([])
-  const initialLoadDone = useRef(false)
+  const [clearingRejected, setClearingRejected] = useState(false)
 
   useEffect(() => { setPage(1) }, [filter])
 
-  const load = useCallback(({ silent = false } = {}) => {
-    const showLoading = !silent && !initialLoadDone.current
-    if (showLoading) setLoading(true)
+  const cacheKey = useMemo(() => `leads:${page}:${filter}`, [page, filter])
+
+  const loader = useCallback(async () => {
     const params = { page }
     if (filter) params.status = filter
-    return leadsApi.list(params)
-      .then(r => {
-        const payload = r.data
-        setData(payload.results || payload)
-        setTotal(payload.count ?? (payload.results || payload).length)
-      })
-      .finally(() => {
-        if (showLoading) setLoading(false)
-        initialLoadDone.current = true
-      })
+    const r = await leadsApi.list(params)
+    const payload = r.data
+    return {
+      items: payload.results || payload,
+      total: payload.count ?? (payload.results || payload).length,
+    }
   }, [filter, page])
 
-  useEffect(() => { load() }, [load])
+  const { data, loading, refresh } = usePageCache(cacheKey, loader)
+  const list = data?.items ?? []
+  const total = data?.total ?? 0
   useEffect(() => {
     servicesApi.list().then(r => setServicesList(r.data.results || r.data))
   }, [])
 
   const accept = async lead => {
     const r = await leadsApi.accept(lead.id)
-    await load({ silent: true })
+    await refresh({ silent: true })
     setSelected(null)
     const firstService = lead.services_detail?.[0]
     setOrderData({
@@ -79,21 +75,35 @@ export default function LeadsPage() {
 
   const reject = async id => {
     await leadsApi.reject(id)
-    await load({ silent: true })
+    await refresh({ silent: true })
     setSelected(null)
   }
 
-  const discuss = async lead => {
-    await leadsApi.update(lead.id, { status: 'in_discussion' })
-    await load({ silent: true })
-    setSelected(null)
+  const setDiscuss = async (lead, inDiscussion) => {
+    await leadsApi.update(lead.id, { status: inDiscussion ? 'in_discussion' : 'new' })
+    await refresh({ silent: true })
+    const r = await leadsApi.get(lead.id)
+    setSelected(r.data)
   }
 
   const deleteLead = async lead => {
     if (!await confirm(`Удалить заявку от ${lead.name}?`)) return
     await leadsApi.delete(lead.id)
-    await load({ silent: true })
+    await refresh({ silent: true })
     setSelected(null)
+  }
+
+  const clearAllRejected = async () => {
+    if (!total) return
+    if (!await confirm(`Удалить все ${total} отклонённых заявок? Это действие необратимо.`)) return
+    setClearingRejected(true)
+    try {
+      await leadsApi.clearRejected()
+      setSelected(null)
+      await refresh({ silent: true })
+    } finally {
+      setClearingRejected(false)
+    }
   }
 
   return (
@@ -113,26 +123,41 @@ export default function LeadsPage() {
         }
       />
 
-      <div className="filter-tabs">
-        {[
-          ['', 'Все'],
-          ['new', 'Новые'],
-          ['in_discussion', 'В обсуждении'],
-          ['accepted', 'Принятые'],
-          ['rejected', 'Отклонённые'],
-        ].map(([v, l]) => (
-          <button key={v} onClick={() => setFilter(v)}
-            style={{ padding: '6px 16px', borderRadius: 20, fontSize: '0.82rem', cursor: 'pointer', background: filter === v ? 'var(--accent)' : 'var(--bg-card)', color: filter === v ? '#fff' : 'var(--text-secondary)', border: filter === v ? 'none' : '1px solid var(--border)', fontWeight: filter === v ? 500 : 400 }}>
-            {l}
-          </button>
-        ))}
+      <div className="leads-filter-wrap">
+        <div className="filter-tabs">
+          {[
+            ['', 'Все'],
+            ['new', 'Новые'],
+            ['in_discussion', 'В обсуждении'],
+            ['accepted', 'Принятые'],
+            ['rejected', 'Отклонённые'],
+          ].map(([v, l]) => (
+            <button key={v} onClick={() => setFilter(v)}
+              style={{ padding: '6px 16px', borderRadius: 20, fontSize: '0.82rem', cursor: 'pointer', background: filter === v ? 'var(--accent)' : 'var(--bg-card)', color: filter === v ? '#fff' : 'var(--text-secondary)', border: filter === v ? 'none' : '1px solid var(--border)', fontWeight: filter === v ? 500 : 400 }}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {filter === 'rejected' && total > 0 && (
+          <Button
+            type="button"
+            className="leads-clear-rejected-btn"
+            variant="danger"
+            size="sm"
+            onClick={clearAllRejected}
+            disabled={clearingRejected}
+            style={{ flexShrink: 0 }}
+          >
+            {clearingRejected ? 'Удаляем...' : 'Удалить все отклонённые'}
+          </Button>
+        )}
       </div>
 
-      {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Загрузка...</div>}
-      {!loading && data.length === 0 && <EmptyState icon="📬" title="Заявок нет" subtitle="Заявки появятся когда кто-то заполнит форму" />}
+      {loading && !list.length && <PageLoadPlaceholder rows={3} />}
+      {!loading && list.length === 0 && <EmptyState icon="📬" title="Заявок нет" subtitle="Заявки появятся когда кто-то заполнит форму" />}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {data.map(lead => (
+      <div className="page-stack">
+        {list.map(lead => (
           <Card key={lead.id} onClick={() => setSelected(lead)} className="lead-card">
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: STATUS_COLORS[lead.status], flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -155,7 +180,7 @@ export default function LeadsPage() {
         ))}
       </div>
 
-      {!loading && data.length > 0 && (
+      {list.length > 0 && (
         <Card style={{ marginTop: 10, padding: 0 }}>
           <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
         </Card>
@@ -167,8 +192,8 @@ export default function LeadsPage() {
           onClose={() => setSelected(null)}
           onAccept={() => accept(selected)}
           onReject={() => reject(selected.id)}
-          onDiscuss={() => discuss(selected)}
-          onUpdated={async () => { await load({ silent: true }); setSelected(null) }}
+          onDiscuss={inDiscussion => setDiscuss(selected, inDiscussion)}
+          onUpdated={async () => { await refresh({ silent: true }); setSelected(null) }}
           onDelete={() => deleteLead(selected)}
         />
       )}
@@ -294,6 +319,7 @@ function EditOrderModal({ orderId, clientId, initial, services, onClose }) {
 function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdated, onDelete }) {
   const [notes, setNotes] = useState(lead.notes || '')
   const [saving, setSaving] = useState(false)
+  const [togglingDiscuss, setTogglingDiscuss] = useState(false)
   const saveNotes = async () => {
     setSaving(true)
     try { await leadsApi.update(lead.id, { notes }); onUpdated() }
@@ -351,6 +377,22 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdat
             style={{ marginTop: 6, fontSize: '0.8rem', color: 'var(--accent)', cursor: 'pointer', background: 'none', border: 'none', fontWeight: 500 }}>
             {saving ? 'Сохраняем...' : 'Сохранить заметку'}
           </button>
+          {isActive && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: togglingDiscuss ? 'wait' : 'pointer', fontSize: '0.875rem', color: 'var(--text-secondary)', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={lead.status === 'in_discussion'}
+                disabled={togglingDiscuss}
+                onChange={async e => {
+                  setTogglingDiscuss(true)
+                  try { await onDiscuss(e.target.checked) }
+                  finally { setTogglingDiscuss(false) }
+                }}
+                style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: togglingDiscuss ? 'wait' : 'pointer' }}
+              />
+              В обсуждении
+            </label>
+          )}
         </div>
 
         {isActive && (
@@ -358,13 +400,8 @@ function LeadDetailModal({ lead, onClose, onAccept, onReject, onDiscuss, onUpdat
             <Button variant="danger" onClick={onReject} style={{ flex: 1, justifyContent: 'center' }}>
               Отклонить
             </Button>
-            {lead.status === 'new' && (
-              <Button variant="ghost" onClick={onDiscuss} style={{ flex: 1, justifyContent: 'center' }}>
-                ✦ В обсуждении
-              </Button>
-            )}
             <Button onClick={onAccept} style={{ flex: 2, justifyContent: 'center' }}>
-              ✓ Принять — создать клиента и заказ
+              Принять — создать клиента и заказ
             </Button>
           </div>
         )}

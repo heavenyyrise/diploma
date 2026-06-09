@@ -128,6 +128,16 @@ export function EmptyState({ icon, title, subtitle, action }) {
   )
 }
 
+export function PageLoadPlaceholder({ rows = 3 }) {
+  return (
+    <div className="page-load-placeholder" aria-busy="true" aria-label="Загрузка">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="page-load-row" />
+      ))}
+    </div>
+  )
+}
+
 export function StatCard({ label, value, sub, color, headerAction }) {
   return (
     <Card style={{ padding: '20px 24px' }}>

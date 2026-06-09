@@ -1,19 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { orders as ordersApi } from '../api'
-import { StatCard, Card, Badge, formatMoney, formatDate } from '../components/ui'
+import { StatCard, Card, Badge, formatMoney, formatDate, PageLoadPlaceholder } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
+import { usePageCache } from '../hooks/usePageCache'
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(null)
-  const [recent, setRecent] = useState([])
   const { user } = useAuth()
   const navigate = useNavigate()
 
-  useEffect(() => {
-    ordersApi.stats().then(r => setStats(r.data))
-    ordersApi.recent().then(r => setRecent(r.data))
+  const loader = useCallback(async () => {
+    const [statsRes, recentRes] = await Promise.all([
+      ordersApi.stats(),
+      ordersApi.recent(),
+    ])
+    return { stats: statsRes.data, recent: recentRes.data }
   }, [])
+
+  const { data, loading } = usePageCache('dashboard', loader)
+  const stats = data?.stats ?? null
+  const recent = data?.recent ?? []
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер'
@@ -29,6 +35,10 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {loading && !data ? (
+        <PageLoadPlaceholder rows={4} />
+      ) : (
+        <>
       <div className="grid-stats-4" style={{ marginBottom: 20 }}>
         <StatCard label="В работе" value={stats?.in_progress ?? '—'} color="var(--info)" />
         <StatCard label="Завершено" value={stats?.completed ?? '—'} color="var(--success)" />
@@ -66,6 +76,8 @@ export default function Dashboard() {
             ))
         }
       </Card>
+        </>
+      )}
     </div>
   )
 }

@@ -106,3 +106,8 @@ class LeadViewSet(UserScopedMixin, viewsets.ModelViewSet):
         lead.notes = request.data.get('notes', lead.notes)
         lead.save()
         return Response({'message': 'Заявка отклонена'})
+
+    @action(detail=False, methods=['post'], url_path='clear-rejected')
+    def clear_rejected(self, request):
+        deleted, _ = self.get_queryset().filter(status='rejected').delete()
+        return Response({'message': f'Удалено заявок: {deleted}', 'deleted': deleted})

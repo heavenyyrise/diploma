@@ -1,5 +1,3 @@
-import datetime
-
 from django.db.models import Count, F, Sum, Window
 from django.db.models.functions import RowNumber, TruncMonth
 from django.utils import timezone
@@ -11,7 +9,7 @@ from apps.clients.models import Client
 from apps.orders.models import Order
 from apps.services.models import Service
 
-from .periods import get_period_bounds, get_previous_period_bounds
+from .periods import resolve_request_period_bounds
 
 LABEL_NEW = 'Новые клиенты'
 LABEL_REPEAT = 'Повторные'
@@ -46,8 +44,7 @@ class IncomeByClientTypeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        period = request.query_params.get('period', 'month')
-        start, end = get_period_bounds(period)
+        start, end, _, _ = resolve_request_period_bounds(request)
 
         ranked = Order.objects.filter(
             user=request.user,
@@ -110,8 +107,7 @@ class NewClientsByLeadSourceView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        period = request.query_params.get('period', 'month')
-        start, end = get_period_bounds(period)
+        start, end, _, _ = resolve_request_period_bounds(request)
 
         data = (
             Client.objects.filter(
@@ -160,8 +156,7 @@ class IncomeByServiceView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        period = request.query_params.get('period', 'month')
-        start, end = get_period_bounds(period)
+        start, end, _, _ = resolve_request_period_bounds(request)
 
         result = []
         for service in Service.objects.filter(user=request.user):
@@ -204,42 +199,15 @@ class IncomeSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        date_from = request.query_params.get('date_from')
-        date_to = request.query_params.get('date_to')
-        period = request.query_params.get('period')
+        start, end, prev_start, prev_end = resolve_request_period_bounds(request)
 
         base_qs = Order.objects.filter(user=request.user, status='completed')
-        prev_total = 0.0
-
-        if period in ('month', 'quarter', 'year'):
-            start, end = get_period_bounds(period)
-            prev_start, prev_end = get_previous_period_bounds(period)
-            qs = base_qs.filter(completed_at__gte=start, completed_at__lte=end)
-            prev_agg = base_qs.filter(
-                completed_at__gte=prev_start,
-                completed_at__lte=prev_end,
-            ).aggregate(total=Sum('price'))
-            prev_total = float(prev_agg['total'] or 0)
-        else:
-            qs = base_qs
-            if date_from:
-                qs = qs.filter(completed_at__date__gte=date_from)
-            if date_to:
-                qs = qs.filter(completed_at__date__lte=date_to)
-            if date_from and date_to:
-                try:
-                    d_from = datetime.date.fromisoformat(date_from)
-                    d_to = datetime.date.fromisoformat(date_to)
-                    delta = d_to - d_from
-                    prev_from = d_from - delta - datetime.timedelta(days=1)
-                    prev_to = d_from - datetime.timedelta(days=1)
-                    prev = base_qs.filter(
-                        completed_at__date__gte=prev_from,
-                        completed_at__date__lte=prev_to,
-                    ).aggregate(total=Sum('price'))
-                    prev_total = float(prev['total'] or 0)
-                except Exception:
-                    pass
+        qs = base_qs.filter(completed_at__gte=start, completed_at__lte=end)
+        prev_agg = base_qs.filter(
+            completed_at__gte=prev_start,
+            completed_at__lte=prev_end,
+        ).aggregate(total=Sum('price'))
+        prev_total = float(prev_agg['total'] or 0)
 
         agg = qs.aggregate(total=Sum('price'), count=Count('id'))
         current_total = float(agg['total'] or 0)

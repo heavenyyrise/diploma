@@ -9,6 +9,7 @@ import TemplateEditor from '../components/messaging/TemplateEditor'
 import { formatEmailDate, getInitials, EMPTY_RECIPIENT } from '../components/messaging/utils'
 import { useMediaQuery } from '../utils/useMediaQuery'
 import { useConfirm } from '../context/ConfirmContext'
+import { usePageCache } from '../hooks/usePageCache'
 
 const EMPTY_TEMPLATE = { id: null, name: '', subject: '', body: '' }
 
@@ -19,8 +20,6 @@ export default function EmailPage() {
   const [replyTo, setReplyTo] = useState('')
   const [savingReply, setSavingReply] = useState(false)
   const [replySaved, setReplySaved] = useState(false)
-  const [sentEmails, setSentEmails] = useState([])
-  const [templates, setTemplates] = useState([])
   const [selectedEmailId, setSelectedEmailId] = useState(null)
   const [composeRecipient, setComposeRecipient] = useState(null)
   const [composeOrderId, setComposeOrderId] = useState(null)
@@ -32,23 +31,32 @@ export default function EmailPage() {
   const [mobilePanel, setMobilePanel] = useState('list')
   const isCompact = useMediaQuery('(max-width: 768px)')
 
+  const loader = useCallback(async () => {
+    const [meRes, sentRes, templatesRes] = await Promise.all([
+      auth.me().catch(() => ({ data: {} })),
+      messagingApi.sent().catch(() => ({ data: [] })),
+      messagingApi.templates.list().catch(() => ({ data: { results: [] } })),
+    ])
+    return {
+      replyTo: meRes.data.reply_to_email || '',
+      sentEmails: sentRes.data || [],
+      templates: templatesRes.data.results || templatesRes.data || [],
+    }
+  }, [])
+
+  const { data, refresh } = usePageCache('email:init', loader)
+  const sentEmails = data?.sentEmails ?? []
+  const templates = data?.templates ?? []
+
+  useEffect(() => {
+    if (data?.replyTo !== undefined) setReplyTo(data.replyTo)
+  }, [data?.replyTo])
+
   const selectedEmail = sentEmails.find(e => e.id === selectedEmailId) || null
 
-  const loadSent = useCallback(() => {
-    messagingApi.sent().then(r => setSentEmails(r.data || [])).catch(() => setSentEmails([]))
-  }, [])
-
-  const loadTemplates = useCallback(() => {
-    messagingApi.templates.list().then(r => setTemplates(r.data.results || r.data)).catch(() => setTemplates([]))
-  }, [])
-
-  const loadAll = useCallback(() => {
-    auth.me().then(r => setReplyTo(r.data.reply_to_email || '')).catch(() => {})
-    loadSent()
-    loadTemplates()
-  }, [loadSent, loadTemplates])
-
-  useEffect(() => { loadAll() }, [loadAll])
+  const loadSent = useCallback(() => refresh({ silent: true }), [refresh])
+  const loadTemplates = useCallback(() => refresh({ silent: true }), [refresh])
+  const loadAll = useCallback(() => refresh({ silent: true }), [refresh])
 
   useEffect(() => {
     const state = location.state

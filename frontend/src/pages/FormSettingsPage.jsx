@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { formSettings as api, services as servicesApi, clients as clientsApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { publicFormUrl } from '../utils/publicFormUrl'
-import { Card, PageHeader, Button, Field, inputStyle } from '../components/ui'
+import { Card, PageHeader, Button, Field, inputStyle, PageLoadPlaceholder } from '../components/ui'
 import { sanitizeClientName, getClientNameError } from '../utils/clientName'
 import { useConfirm } from '../context/ConfirmContext'
+import { usePageCache } from '../hooks/usePageCache'
 
 const FORM_FIELDS = [
   { key: 'show_lead_source', label: 'Источник клиента',   hint: 'Откуда узнал о вас' },
@@ -17,21 +18,35 @@ const FORM_FIELDS = [
 export default function FormSettingsPage() {
   const { user } = useAuth()
   const [settings, setSettings] = useState(null)
-  const [services, setServices] = useState([])
-  const [leadSources, setLeadSources] = useState([])
-  const [contactTypes, setContactTypes] = useState([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  const loadLeadSources = () => clientsApi.leadSources().then(r => setLeadSources(r.data.results || r.data))
-  const loadContactTypes = () => clientsApi.contactTypes().then(r => setContactTypes(r.data.results || r.data))
+  const loader = useCallback(async () => {
+    const [settingsRes, servicesRes, sourcesRes, typesRes] = await Promise.all([
+      api.get(),
+      servicesApi.list({ is_active: true }),
+      clientsApi.leadSources(),
+      clientsApi.contactTypes(),
+    ])
+    return {
+      settings: settingsRes.data,
+      services: servicesRes.data.results || servicesRes.data,
+      leadSources: sourcesRes.data.results || sourcesRes.data,
+      contactTypes: typesRes.data.results || typesRes.data,
+    }
+  }, [])
+
+  const { data, loading, refresh } = usePageCache('form-settings', loader)
+  const services = data?.services ?? []
+  const leadSources = data?.leadSources ?? []
+  const contactTypes = data?.contactTypes ?? []
 
   useEffect(() => {
-    api.get().then(r => setSettings(r.data))
-    servicesApi.list({ is_active: true }).then(r => setServices(r.data.results || r.data))
-    loadLeadSources()
-    loadContactTypes()
-  }, [])
+    if (data?.settings) setSettings(prev => prev ?? data.settings)
+  }, [data])
+
+  const loadLeadSources = () => refresh({ silent: true })
+  const loadContactTypes = () => refresh({ silent: true })
 
   const set = (k, v) => setSettings(p => ({ ...p, [k]: v }))
 
@@ -48,7 +63,15 @@ export default function FormSettingsPage() {
 
   const formLink = publicFormUrl(user?.id)
 
-  if (!settings) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Загрузка...</div>
+  if (loading && !data) {
+    return (
+      <div className="page page-wide">
+        <PageLoadPlaceholder rows={4} />
+      </div>
+    )
+  }
+
+  if (!settings) return null
 
   return (
     <div className="page page-wide">

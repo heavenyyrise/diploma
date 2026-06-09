@@ -88,7 +88,7 @@ export default function PublicLeadForm() {
   }
 
   if (loadError) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div className="public-form-center">
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 'var(--font-display-weight)', marginBottom: 12 }}>Форма недоступна</h1>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: '0.95rem' }}>{loadError}</p>
@@ -103,7 +103,7 @@ export default function PublicLeadForm() {
   )
 
   if (sent) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div className="public-form-center">
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
         <div style={{ fontSize: '3.5rem', marginBottom: 20 }}>✉️</div>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 'var(--font-display-weight)', marginBottom: 12 }}>Заявка отправлена!</h1>
@@ -233,7 +233,7 @@ export default function PublicLeadForm() {
                       {(cfg.show_budget || cfg.show_deadline) && (
                         <div className="grid-form-2" style={{ gridTemplateColumns: cfg.show_budget && cfg.show_deadline ? '1fr 1fr' : '1fr', gap: 14 }}>
                           {cfg.show_budget && (
-                            <FField label="Бюджет (BYN)" hint="Приблизительно">
+                            <FField label="Бюджет (BYN)">
                               <input type="number" value={form.budget} onChange={e => set('budget', e.target.value)}
                                 placeholder="0" min="0" style={fStyle} />
                             </FField>
@@ -250,7 +250,7 @@ export default function PublicLeadForm() {
                 </>
               )}
 
-              <div style={{ padding: '20px 28px', background: 'var(--bg)', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="public-form-footer">
                 {error && (
                   <div style={{ fontSize: '0.85rem', color: 'var(--danger)', background: 'var(--danger-bg)', padding: '8px 14px', borderRadius: 'var(--radius-sm)' }}>{error}</div>
                 )}
