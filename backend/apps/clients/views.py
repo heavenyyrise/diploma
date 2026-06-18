@@ -1,4 +1,5 @@
-from rest_framework import viewsets, filters
+from django.db.models.deletion import ProtectedError
+from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
@@ -14,7 +15,7 @@ from .serializers import (
 from .validators import validate_contact_value, normalize_contact_value
 
 
-def _parse_and_validate_contacts(contacts_data):
+def _parse_and_validate_contacts(contacts_data, user):
     parsed_contacts = []
     errors = []
 
@@ -25,7 +26,7 @@ def _parse_and_validate_contacts(contacts_data):
             continue
 
         try:
-            contact_type = ContactType.objects.get(pk=contact_type_id)
+            contact_type = ContactType.objects.get(pk=contact_type_id, user=user)
         except ContactType.DoesNotExist:
             errors.append({'index': index, 'value': 'Неизвестный тип контакта.'})
             continue
@@ -46,7 +47,7 @@ def _parse_and_validate_contacts(contacts_data):
     return parsed_contacts
 
 
-class LeadSourceViewSet(viewsets.ModelViewSet):
+class LeadSourceViewSet(UserScopedMixin, viewsets.ModelViewSet):
     queryset = LeadSource.objects.all()
     serializer_class = LeadSourceSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
@@ -55,13 +56,23 @@ class LeadSourceViewSet(viewsets.ModelViewSet):
     ordering = ['order', 'name']
 
 
-class ContactTypeViewSet(viewsets.ModelViewSet):
+class ContactTypeViewSet(UserScopedMixin, viewsets.ModelViewSet):
     queryset = ContactType.objects.all()
     serializer_class = ContactTypeSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['is_active']
     search_fields = ['name']
     ordering = ['order', 'name']
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'detail': 'Нельзя удалить — тип используется в контактах. Деактивируйте его.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class ClientViewSet(UserScopedMixin, viewsets.ModelViewSet):
@@ -83,14 +94,19 @@ class ClientViewSet(UserScopedMixin, viewsets.ModelViewSet):
             )
         )
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['user'] = self.request.user
+        return context
+
     def create(self, request, *args, **kwargs):
         contacts_data = request.data.pop('contacts', [])
-        parsed_contacts = _parse_and_validate_contacts(contacts_data)
+        parsed_contacts = _parse_and_validate_contacts(contacts_data, request.user)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.context['contacts'] = parsed_contacts
         client = serializer.save(user=request.user)
-        return Response(ClientSerializer(client).data, status=201)
+        return Response(ClientSerializer(client, context=self.get_serializer_context()).data, status=201)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -98,12 +114,12 @@ class ClientViewSet(UserScopedMixin, viewsets.ModelViewSet):
         contacts_data = request.data.pop('contacts', None)
         parsed_contacts = None
         if contacts_data is not None:
-            parsed_contacts = _parse_and_validate_contacts(contacts_data)
+            parsed_contacts = _parse_and_validate_contacts(contacts_data, request.user)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         serializer.context['contacts'] = parsed_contacts
         client = serializer.save()
-        return Response(ClientSerializer(client).data)
+        return Response(ClientSerializer(client, context=self.get_serializer_context()).data)
 
     @action(detail=True, methods=['get'])
     def orders(self, request, pk=None):

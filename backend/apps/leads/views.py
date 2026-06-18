@@ -5,11 +5,15 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from apps.core.mixins import UserScopedMixin
+from apps.core.throttling import PublicLeadThrottle
 from .models import Lead
 from .serializers import LeadSerializer, LeadPublicSerializer
 
 User = get_user_model()
+
+ACCEPTABLE_LEAD_STATUSES = ('new', 'in_discussion')
 
 
 def _get_user_id(request):
@@ -18,6 +22,7 @@ def _get_user_id(request):
 
 class LeadPublicCreateView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [PublicLeadThrottle]
 
     def post(self, request):
         user_id = _get_user_id(request)
@@ -46,65 +51,103 @@ class LeadViewSet(UserScopedMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
-        lead = self.get_object()
-        from apps.clients.models import Client, ContactInfo, ContactType
-        from apps.orders.models import Order
+        with transaction.atomic():
+            lead = self.get_queryset().select_for_update().get(pk=pk)
 
-        client = Client.objects.create(
-            user=request.user,
-            name=lead.name,
-            lead_source=lead.lead_source,
-            notes=f'Создан из заявки #{lead.id}',
-        )
+            if lead.status == 'accepted':
+                return Response(
+                    {'message': 'Заявка уже принята'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if lead.status == 'rejected':
+                return Response(
+                    {'message': 'Нельзя принять отклонённую заявку'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if lead.status not in ACCEPTABLE_LEAD_STATUSES:
+                return Response(
+                    {'message': 'Заявку нельзя принять в текущем статусе'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        if lead.contact_type and lead.contact_value:
-            ContactInfo.objects.create(
+            from apps.clients.models import Client, ContactInfo, ContactType
+            from apps.orders.models import Order
+
+            client = Client.objects.create(
+                user=request.user,
+                name=lead.name,
+                lead_source=lead.lead_source,
+                notes=f'Создан из заявки #{lead.id}',
+            )
+
+            if lead.contact_type and lead.contact_value:
+                ContactInfo.objects.create(
+                    client=client,
+                    contact_type=lead.contact_type,
+                    value=lead.contact_value,
+                )
+
+            if lead.email:
+                email_type, _ = ContactType.objects.get_or_create(
+                    user=request.user, name='Email', defaults={'order': 10},
+                )
+                ContactInfo.objects.create(
+                    client=client,
+                    contact_type=email_type,
+                    value=lead.email,
+                )
+
+            from apps.orders.validators import is_retrospective_deadline
+
+            first_service = lead.services.first()
+            title = first_service.name if first_service else f'Заказ от {lead.name}'
+            order_status = 'completed' if is_retrospective_deadline(lead.deadline) else 'in_progress'
+
+            order = Order.objects.create(
+                user=request.user,
+                title=title,
                 client=client,
-                contact_type=lead.contact_type,
-                value=lead.contact_value,
+                description=lead.description,
+                price=lead.budget or 0,
+                deadline=lead.deadline,
+                status=order_status,
+                source='manual',
             )
+            order.services.set(lead.services.all())
 
-        if lead.email:
-            email_type, _ = ContactType.objects.get_or_create(
-                name='Email', defaults={'order': 10}
-            )
-            ContactInfo.objects.create(
-                client=client,
-                contact_type=email_type,
-                value=lead.email,
-            )
+            from apps.orders.services import log_order_created
+            log_order_created(order, request.user)
 
-        from apps.orders.validators import is_retrospective_deadline
+            lead.status = 'accepted'
+            lead.save(update_fields=['status'])
 
-        first_service = lead.services.first()
-        title = first_service.name if first_service else f'Заказ от {lead.name}'
-        order_status = 'completed' if is_retrospective_deadline(lead.deadline) else 'in_progress'
-
-        order = Order.objects.create(
-            user=request.user,
-            title=title,
-            client=client,
-            description=lead.description,
-            price=lead.budget or 0,
-            deadline=lead.deadline,
-            status=order_status,
-            source='manual',
-        )
-        order.services.set(lead.services.all())
-
-        from apps.orders.services import log_order_created
-        log_order_created(order, request.user)
-
-        lead.status = 'accepted'
-        lead.save()
         return Response({'message': 'Заявка принята', 'client_id': client.id, 'order_id': order.id})
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
-        lead = self.get_object()
-        lead.status = 'rejected'
-        lead.notes = request.data.get('notes', lead.notes)
-        lead.save()
+        with transaction.atomic():
+            lead = self.get_queryset().select_for_update().get(pk=pk)
+
+            if lead.status == 'rejected':
+                return Response(
+                    {'message': 'Заявка уже отклонена'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if lead.status == 'accepted':
+                return Response(
+                    {'message': 'Нельзя отклонить принятую заявку'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if lead.status not in ACCEPTABLE_LEAD_STATUSES:
+                return Response(
+                    {'message': 'Заявку нельзя отклонить в текущем статусе'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            lead.status = 'rejected'
+            lead.notes = request.data.get('notes', lead.notes)
+            lead.save(update_fields=['status', 'notes'])
+
         return Response({'message': 'Заявка отклонена'})
 
     @action(detail=False, methods=['post'], url_path='clear-rejected')

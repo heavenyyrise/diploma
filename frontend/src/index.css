@@ -1,9 +1,9 @@
 :root {
-  /* Page */
+  /*  Page  */
   --bg: #f7f5f2;
   --bg-card: #ffffff;
 
-  /* Sidebar */
+  /*  Sidebar  */
   --bg-sidebar: #121212;
   --bg-sidebar-hover: #292524;
   --bg-sidebar-active: #44403c;
@@ -54,7 +54,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
-/* ── Layout ── */
+/*  Layout  */
 .app-layout { display: flex; min-height: 100vh; }
 .app-main {
   margin-left: var(--sidebar-width);
@@ -119,7 +119,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .app-sidebar-overlay.is-visible { display: block; }
 }
 
-/* ── Pages ── */
+/*  Pages  */
 .page {
   padding: var(--page-padding-y) var(--page-padding-x);
   box-sizing: border-box;
@@ -144,7 +144,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   }
 }
 
-/* ── Grids ── */
+/*  Grids  */
 .grid-stats-4 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -197,7 +197,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .grid-stats-4 { grid-template-columns: 1fr; }
 }
 
-/* ── Page loading ── */
+/*  Page loading  */
 .page-load-placeholder {
   display: flex;
   flex-direction: column;
@@ -216,7 +216,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   100% { background-position: -100% 0; }
 }
 
-/* ── Headers & actions ── */
+/*  Headers & actions  */
 .page-header {
   display: flex;
   align-items: flex-end;
@@ -275,7 +275,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .actions-row > * { flex: 1; justify-content: center; min-width: 0; }
 }
 
-/* ── Filters & tabs ── */
+/*  Filters & tabs  */
 .filter-tabs {
   display: flex;
   gap: 4px;
@@ -311,7 +311,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   width: 100%;
 }
 
-/* ── Pagination ── */
+/*  Pagination  */
 .pagination-bar {
   display: flex;
   align-items: center;
@@ -378,7 +378,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .filter-field select { width: 100%; }
 }
 
-/* ── List rows ── */
+/*  List rows  */
 .list-row {
   display: flex;
   align-items: center;
@@ -556,7 +556,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   }
 }
 
-/* ── Auth ── */
+/*  Auth  */
 .auth-page {
   min-height: 100vh;
   display: flex;
@@ -595,7 +595,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .auth-form-side { padding: 24px 16px; }
 }
 
-/* ── Form settings link bar ── */
+/*  Form settings link bar  */
 .form-link-bar {
   padding: 16px 20px;
   margin-bottom: 24px;
@@ -617,7 +617,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .form-link-actions > * { flex: 1; justify-content: center; }
 }
 
-/* ── Income charts ── */
+/*  Income charts  */
 .income-month-chart {
   overflow: visible;
 }
@@ -634,7 +634,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .pie-row { flex-direction: column; align-items: stretch; }
 }
 
-/* ── Email ── */
+/*  Email  */
 .email-shell {
   box-sizing: border-box;
   height: 100vh;
@@ -715,7 +715,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .email-content-panel.is-hidden { display: none; }
 }
 
-/* ── Public form ── */
+/*  Public form  */
 .public-form-header { background: var(--bg-sidebar); padding: 20px var(--page-padding-x); }
 .public-form-body {
   flex: 1;
@@ -761,7 +761,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   .public-contact-row select { width: 100% !important; }
 }
 
-/* ── Toast ── */
+/*  Toast  */
 .lead-toast {
   position: fixed;
   bottom: 28px;
@@ -780,7 +780,7 @@ input, textarea, select { font-family: var(--font-body); font-size: 0.9rem; }
   }
 }
 
-/* ── Utilities ── */
+/*  Utilities  */
 .hide-mobile {}
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { messaging as messagingApi, orders as ordersApi } from '../../api'
 import { Button } from '../ui'
+import AuthenticatedImage from '../ui/AuthenticatedImage'
 import RecipientInput from './RecipientInput'
 import { EMPTY_RECIPIENT } from './utils'
 import { getUserFacingError } from '../../utils/userFacingError'
@@ -181,6 +182,7 @@ export default function ComposeEmailForm({
               previewUrl={a.file_url}
               badge="из заказа"
               accent
+              authenticated
               onRemove={() => removeOrderFile(a.id)}
             />
           ))}
@@ -252,8 +254,20 @@ function isImageName(name) {
   return /\.(jpe?g|png)$/i.test(name || '')
 }
 
-function AttachmentThumb({ name, isImage, previewUrl }) {
+function AttachmentThumb({ name, isImage, previewUrl, authenticated }) {
   if (isImage && previewUrl) {
+    if (authenticated) {
+      return (
+        <AuthenticatedImage
+          fileUrl={previewUrl}
+          alt={name}
+          style={{
+            width: 36, height: 36, objectFit: 'cover', borderRadius: 6,
+            border: '1px solid var(--border)', flexShrink: 0,
+          }}
+        />
+      )
+    }
     return (
       <img
         src={previewUrl}
@@ -276,7 +290,7 @@ function AttachmentThumb({ name, isImage, previewUrl }) {
   )
 }
 
-function AttachmentChip({ name, isImage, previewUrl, badge, accent, onRemove }) {
+function AttachmentChip({ name, isImage, previewUrl, badge, accent, authenticated, onRemove }) {
   return (
     <div style={{
       display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -284,7 +298,7 @@ function AttachmentChip({ name, isImage, previewUrl, badge, accent, onRemove }) 
       background: accent ? 'var(--accent-light)' : 'var(--bg)',
       border: '1px solid var(--border)', maxWidth: 280,
     }}>
-      <AttachmentThumb name={name} isImage={isImage} previewUrl={previewUrl} />
+      <AttachmentThumb name={name} isImage={isImage} previewUrl={previewUrl} authenticated={authenticated} />
       <span style={{
         fontSize: '0.78rem', lineHeight: 1.3, wordBreak: 'break-word',
         flex: 1, minWidth: 0,

@@ -2,23 +2,18 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from apps.clients.defaults import seed_user_dictionaries
 from .models import User
 
 UserModel = get_user_model()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    def validate(self, attrs):
-        username = attrs.get(self.username_field)
-        try:
-            user = UserModel.objects.get(**{self.username_field: username})
-            if not user.is_active and not user.is_superuser:
-                raise serializers.ValidationError(
-                    'Подтвердите email. Проверьте почту или запросите письмо повторно.'
-                )
-        except UserModel.DoesNotExist:
-            pass
+    default_error_messages = {
+        'no_active_account': 'Неверные учётные данные.',
+    }
 
+    def validate(self, attrs):
         data = super().validate(attrs)
         data['id'] = self.user.id
         data['username'] = self.user.username
@@ -51,6 +46,7 @@ class RegisterSerializer(serializers.Serializer):
             password=validated_data['password'],
             is_active=False,
         )
+        seed_user_dictionaries(user)
         return user
 
 
@@ -58,13 +54,6 @@ class ResendVerificationSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate_email(self, value):
-        try:
-            user = UserModel.objects.get(email__iexact=value)
-        except UserModel.DoesNotExist:
-            raise serializers.ValidationError('Пользователь не найден.')
-        if user.is_active:
-            raise serializers.ValidationError('Email уже подтверждён.')
-        self.context['user'] = user
         return value.lower()
 
 

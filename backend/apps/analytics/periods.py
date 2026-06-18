@@ -6,7 +6,6 @@ from django.utils import timezone
 
 
 def get_period_bounds(period):
-    """Return (start, end) datetimes for month, quarter, or year period."""
     now = timezone.now()
     if period == 'year':
         start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -22,7 +21,6 @@ def get_period_bounds(period):
 
 
 def get_previous_period_bounds(period):
-    """Return (start, end) datetimes for the full previous calendar period."""
     current_start, _ = get_period_bounds(period)
     prev_end = current_start - timedelta(microseconds=1)
 
@@ -66,10 +64,6 @@ def _query_param(request, key, default=None):
 
 
 def resolve_request_period_bounds(request):
-    """
-    Return (start, end, prev_start, prev_end).
-    Priority: date_from+date_to > year+month > period.
-    """
     date_from = _query_param(request, 'date_from')
     date_to = _query_param(request, 'date_to')
     year = _query_param(request, 'year')

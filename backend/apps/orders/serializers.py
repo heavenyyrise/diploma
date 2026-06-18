@@ -1,4 +1,6 @@
 import os
+
+from django.urls import reverse
 from rest_framework import serializers
 from .models import Order, OrderChangeLog, OrderAttachment
 from .services import build_order_snapshot, log_order_changes, log_order_created, FIELD_LABELS
@@ -120,9 +122,13 @@ class OrderAttachmentSerializer(serializers.ModelSerializer):
 
     def get_file_url(self, obj):
         request = self.context.get('request')
-        if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
-        return obj.file.url if obj.file else ''
+        if not request or not obj.pk:
+            return ''
+        path = reverse(
+            'orders-download-attachment',
+            kwargs={'pk': obj.order_id, 'attachment_pk': obj.pk},
+        )
+        return request.build_absolute_uri(path)
 
     def get_uploaded_by_name(self, obj):
         if not obj.uploaded_by:

@@ -11,28 +11,31 @@ export default function ClientsPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [incomeSort, setIncomeSort] = useState('')
+  const [clientType, setClientType] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [leadSources, setLeadSources] = useState([])
   const [contactTypes, setContactTypes] = useState([])
   const navigate = useNavigate()
 
-  useEffect(() => { setPage(1) }, [search, incomeSort])
+  useEffect(() => { setPage(1) }, [search, incomeSort, clientType])
 
   const cacheKey = useMemo(
-    () => `clients:${page}:${search}:${incomeSort}`,
-    [page, search, incomeSort],
+    () => `clients:${page}:${search}:${incomeSort}:${clientType}`,
+    [page, search, incomeSort, clientType],
   )
 
   const loader = useCallback(async () => {
     const params = { ordering: incomeSort || '-created_at', page }
     if (search) params.search = search
+    if (clientType === 'regular') params.is_regular = true
+    if (clientType === 'one_time') params.is_regular = false
     const r = await clientsApi.list(params)
     const payload = r.data
     return {
       items: payload.results || payload,
       total: payload.count ?? (payload.results || payload).length,
     }
-  }, [search, incomeSort, page])
+  }, [search, incomeSort, clientType, page])
 
   const { data, loading, refresh } = usePageCache(cacheKey, loader)
   const list = data?.items ?? []
@@ -62,6 +65,20 @@ export default function ClientsPage() {
               label: 'Поиск',
               grow: true,
               el: <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Имя, контакт..." style={inputStyle} />,
+            },
+            {
+              label: 'Тип заказчика',
+              el: (
+                <select
+                  value={clientType}
+                  onChange={e => setClientType(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="">Все</option>
+                  <option value="regular">Постоянный</option>
+                  <option value="one_time">Разовый</option>
+                </select>
+              ),
             },
             {
               label: 'Доход от клиента',

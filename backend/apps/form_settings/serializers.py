@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import FormSettings
+from apps.services.models import Service
 from apps.services.serializers import ServiceShortSerializer
 from apps.clients.serializers import LeadSourceSerializer, ContactTypeSerializer
 
@@ -15,6 +16,23 @@ class FormSettingsSerializer(serializers.ModelSerializer):
             'show_service', 'show_lead_source',
             'services', 'services_detail',
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            self.fields['services'].queryset = Service.objects.filter(
+                user=request.user, is_active=True,
+            )
+
+    def validate_services(self, services):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return services
+        for service in services:
+            if service.user_id != request.user.id:
+                raise serializers.ValidationError('Услуга не принадлежит этому пользователю')
+        return services
 
 
 class FormSettingsPublicSerializer(serializers.ModelSerializer):
@@ -38,8 +56,14 @@ class FormSettingsPublicSerializer(serializers.ModelSerializer):
 
     def get_lead_sources(self, obj):
         from apps.clients.models import LeadSource
-        return LeadSourceSerializer(LeadSource.objects.filter(is_active=True), many=True).data
+        return LeadSourceSerializer(
+            LeadSource.objects.filter(user=obj.user, is_active=True),
+            many=True,
+        ).data
 
     def get_contact_types(self, obj):
         from apps.clients.models import ContactType
-        return ContactTypeSerializer(ContactType.objects.filter(is_active=True), many=True).data
+        return ContactTypeSerializer(
+            ContactType.objects.filter(user=obj.user, is_active=True),
+            many=True,
+        ).data

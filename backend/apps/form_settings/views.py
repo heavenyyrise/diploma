@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from django.contrib.auth import get_user_model
+from apps.core.throttling import PublicFormThrottle
 from .models import FormSettings
 from .serializers import FormSettingsSerializer, FormSettingsPublicSerializer
 
@@ -11,6 +12,7 @@ User = get_user_model()
 
 class FormSettingsPublicView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [PublicFormThrottle]
 
     def get(self, request):
         user_id = request.query_params.get('user_id')

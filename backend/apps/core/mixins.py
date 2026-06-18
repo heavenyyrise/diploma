@@ -1,6 +1,4 @@
 class UserScopedMixin:
-    """Filter queryset by request.user and auto-assign user on create."""
-
     def get_queryset(self):
         qs = super().get_queryset()
         if self.request.user.is_authenticated:

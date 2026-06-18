@@ -17,7 +17,12 @@ const STATUSES = [
   { value: 'cancelled', label: 'Отменён' },
 ]
 
-const DEFAULT_FILTERS = { status: '', search: '', lead_source: '', deadline_from: '', deadline_to: '' }
+const DEFAULT_FILTERS = { status: '', search: '', lead_source: '', deadline_from: '', deadline_to: '', ordering: '-deadline' }
+
+const SORT_OPTIONS = [
+  { value: '-deadline', label: 'Сначала новые' },
+  { value: 'deadline', label: 'Сначала старые' },
+]
 
 const OrdersFilterBar = memo(function OrdersFilterBar({
   filters,
@@ -32,6 +37,11 @@ const OrdersFilterBar = memo(function OrdersFilterBar({
         {[
           { label: 'Поиск', grow: true, el: <input value={filters.search} onChange={e => onFilterChange('search', e.target.value)} placeholder="Название, клиент..." style={inputStyle} /> },
           { label: 'Статус', el: <select value={filters.status} onChange={e => onFilterChange('status', e.target.value)} style={inputStyle}>{STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select> },
+          { label: 'Сортировка', el: (
+            <select value={filters.ordering ?? '-deadline'} onChange={e => onFilterChange('ordering', e.target.value)} style={inputStyle}>
+              {SORT_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          )},
           { label: 'Источник клиента', el: (
             <select value={filters.lead_source} onChange={e => onFilterChange('lead_source', e.target.value)} style={inputStyle}>
               <option value="">Все источники</option>
@@ -65,9 +75,15 @@ const OrdersFilterBar = memo(function OrdersFilterBar({
   )
 })
 
+const SORT_VALUES = new Set(SORT_OPTIONS.map(s => s.value))
+
 export default function OrdersPage() {
   const [page, setPage] = useState(() => readPageCache('orders:page') ?? 1)
-  const [filters, setFilters] = useState(() => readPageCache('orders:filters') ?? DEFAULT_FILTERS)
+  const [filters, setFilters] = useState(() => {
+    const cached = { ...DEFAULT_FILTERS, ...(readPageCache('orders:filters') ?? {}) }
+    if (!SORT_VALUES.has(cached.ordering)) cached.ordering = DEFAULT_FILTERS.ordering
+    return cached
+  })
   const [deadlineFilterError, setDeadlineFilterError] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const navigate = useNavigate()
@@ -100,7 +116,7 @@ export default function OrdersPage() {
   const leadSources = meta?.leadSources ?? []
 
   const cacheKey = useMemo(
-    () => `orders:${page}:${filters.status}:${filters.search}:${filters.lead_source}:${filters.deadline_from}:${filters.deadline_to}`,
+    () => `orders:${page}:${filters.status}:${filters.search}:${filters.lead_source}:${filters.deadline_from}:${filters.deadline_to}:${filters.ordering ?? '-deadline'}`,
     [page, filters],
   )
 
@@ -111,6 +127,7 @@ export default function OrdersPage() {
     if (filters.lead_source) p.lead_source = filters.lead_source
     if (filters.deadline_from) p.deadline_from = filters.deadline_from
     if (filters.deadline_to) p.deadline_to = filters.deadline_to
+    if (filters.ordering) p.ordering = filters.ordering
     const r = await ordersApi.list(p)
     const payload = r.data
     return {

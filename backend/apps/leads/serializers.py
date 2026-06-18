@@ -3,6 +3,7 @@ from .models import Lead
 from apps.services.models import Service
 from apps.services.serializers import ServiceShortSerializer
 from apps.clients.serializers import LeadSourceSerializer, ContactTypeSerializer
+from apps.clients.models import LeadSource, ContactType
 from apps.clients.validators import validate_client_name, validate_contact_value, normalize_contact_value
 
 
@@ -24,6 +25,8 @@ class LeadPublicSerializer(serializers.ModelSerializer):
         owner = self.context.get('owner')
         if owner:
             self.fields['services'].queryset = Service.objects.filter(user=owner, is_active=True)
+            self.fields['contact_type'].queryset = ContactType.objects.filter(user=owner, is_active=True)
+            self.fields['lead_source'].queryset = LeadSource.objects.filter(user=owner, is_active=True)
 
     def validate_services(self, services):
         owner = self.context.get('owner')
@@ -41,7 +44,14 @@ class LeadPublicSerializer(serializers.ModelSerializer):
         return value.strip()
 
     def validate(self, attrs):
+        owner = self.context.get('owner')
         contact_type = attrs.get('contact_type')
+        lead_source = attrs.get('lead_source')
+        if owner and contact_type and contact_type.user_id != owner.id:
+            raise serializers.ValidationError({'contact_type': 'Тип контакта не принадлежит этому пользователю.'})
+        if owner and lead_source and lead_source.user_id != owner.id:
+            raise serializers.ValidationError({'lead_source': 'Источник не принадлежит этому пользователю.'})
+
         contact_value = (attrs.get('contact_value') or '').strip()
         if contact_type and contact_value:
             error = validate_contact_value(contact_value, contact_type.name)
@@ -81,13 +91,15 @@ class LeadSerializer(serializers.ModelSerializer):
             'status', 'status_display',
             'notes', 'created_at', 'contact_display',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'status']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             self.fields['services'].queryset = Service.objects.filter(user=request.user)
+            self.fields['lead_source'].queryset = LeadSource.objects.filter(user=request.user)
+            self.fields['contact_type'].queryset = ContactType.objects.filter(user=request.user)
 
     def update(self, instance, validated_data):
         services = validated_data.pop('services', None)

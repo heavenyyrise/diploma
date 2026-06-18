@@ -1,9 +1,12 @@
+import mimetypes
+
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django_filters.rest_framework import DjangoFilterBackend
-from django.shortcuts import get_object_or_404
+from rest_framework.response import Response
 from apps.core.mixins import UserScopedMixin
 from .models import Order, OrderAttachment
 from .serializers import (
@@ -80,6 +83,31 @@ class OrderViewSet(UserScopedMixin, viewsets.ModelViewSet):
             OrderAttachmentSerializer(attachment, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path=r'attachments/(?P<attachment_pk>[^/.]+)/file',
+    )
+    def download_attachment(self, request, pk=None, attachment_pk=None):
+        order = self.get_object()
+        attachment = get_object_or_404(OrderAttachment, pk=attachment_pk, order=order)
+
+        if not attachment.file:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        content_type, _ = mimetypes.guess_type(attachment.original_name)
+        if not content_type:
+            content_type = 'application/octet-stream'
+
+        inline = request.query_params.get('inline') == '1'
+        response = FileResponse(
+            attachment.file.open('rb'),
+            content_type=content_type,
+            as_attachment=not inline,
+            filename=attachment.original_name,
+        )
+        return response
 
     @action(detail=True, methods=['delete'], url_path=r'attachments/(?P<attachment_pk>[^/.]+)')
     def delete_attachment(self, request, pk=None, attachment_pk=None):

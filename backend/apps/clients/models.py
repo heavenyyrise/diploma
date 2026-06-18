@@ -3,7 +3,10 @@ from django.db.models import Sum
 
 
 class LeadSource(models.Model):
-    """Источник клиента (откуда узнал о фрилансере)"""
+    user = models.ForeignKey(
+        'users.User', on_delete=models.CASCADE,
+        related_name='lead_sources', verbose_name='Пользователь',
+    )
     name = models.CharField(max_length=255, verbose_name='Название')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
     order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
@@ -12,13 +15,19 @@ class LeadSource(models.Model):
         verbose_name = 'Источник клиента'
         verbose_name_plural = 'Источники клиентов'
         ordering = ['order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'name'], name='unique_lead_source_per_user'),
+        ]
 
     def __str__(self):
         return self.name
 
 
 class ContactType(models.Model):
-    """Тип контакта (Telegram, Instagram, Email и т.д.)"""
+    user = models.ForeignKey(
+        'users.User', on_delete=models.CASCADE,
+        related_name='contact_types', verbose_name='Пользователь',
+    )
     name = models.CharField(max_length=100, verbose_name='Название')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
     order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
@@ -27,6 +36,9 @@ class ContactType(models.Model):
         verbose_name = 'Тип контакта'
         verbose_name_plural = 'Типы контактов'
         ordering = ['order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'name'], name='unique_contact_type_per_user'),
+        ]
 
     def __str__(self):
         return self.name
@@ -70,7 +82,6 @@ class Client(models.Model):
 
     @property
     def primary_contact(self):
-        """Первый контакт для отображения в списке"""
         c = self.contacts.first()
         if c:
             return f"{c.contact_type.name}: {c.value}"
@@ -78,7 +89,6 @@ class Client(models.Model):
 
 
 class ContactInfo(models.Model):
-    """Контакт для связи с клиентом"""
     client = models.ForeignKey(
         Client, on_delete=models.CASCADE,
         related_name='contacts', verbose_name='Клиент'

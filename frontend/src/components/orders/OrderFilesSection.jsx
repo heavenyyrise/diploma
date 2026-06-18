@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import AuthenticatedImage from '../ui/AuthenticatedImage'
+import { downloadAuthenticatedFile } from '../../utils/authenticatedFile'
 
 function formatDateTime(d) {
   if (!d) return '—'
@@ -88,18 +90,28 @@ export default function OrderFilesSection({
               <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg)' }}>
                 {a.is_image
                   ? (
-                    <a href={a.file_url} target="_blank" rel="noopener noreferrer">
-                      <img src={a.file_url} alt={a.original_name} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
-                    </a>
+                    <AuthenticatedImage
+                      fileUrl={a.file_url}
+                      alt={a.original_name}
+                      style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }}
+                    />
                   )
                   : (
                     <div style={{ width: 56, height: 56, borderRadius: 6, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.4rem' }}>📄</div>
                   )
                 }
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <a href={a.file_url} download={a.original_name} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.875rem', color: 'var(--accent)', textDecoration: 'none', wordBreak: 'break-word', display: 'block' }}>
+                  <button
+                    type="button"
+                    onClick={() => downloadAuthenticatedFile(a.file_url, a.original_name)}
+                    style={{
+                      fontSize: '0.875rem', color: 'var(--accent)', textDecoration: 'none',
+                      wordBreak: 'break-word', display: 'block', background: 'none', border: 'none',
+                      padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'var(--font-body)',
+                    }}
+                  >
                     {a.original_name}
-                  </a>
+                  </button>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
                     {formatFileSize(a.file_size)} · {formatDateTime(a.uploaded_at)}
                   </div>

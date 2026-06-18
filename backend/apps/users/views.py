@@ -3,12 +3,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.contrib.auth import get_user_model
+from apps.core.throttling import AuthRegisterThrottle, AuthResendThrottle
 from .models import EmailVerificationToken
 from .serializers import (
     CustomTokenObtainPairSerializer, UserSerializer,
     RegisterSerializer, ResendVerificationSerializer,
 )
 from .services import create_verification_token, send_verification_email
+
+User = get_user_model()
+RESEND_SUCCESS_MESSAGE = 'Если аккаунт существует и не подтверждён, письмо отправлено.'
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -17,6 +22,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthRegisterThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -65,20 +71,29 @@ class VerifyEmailView(APIView):
 
 class ResendVerificationView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthResendThrottle]
 
     def post(self, request):
         serializer = ResendVerificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.context['user']
-        token = create_verification_token(user)
+        email = serializer.validated_data['email']
+
         try:
-            send_verification_email(user, token)
-        except Exception:
-            return Response(
-                {'detail': 'Не удалось отправить письмо. Попробуйте позже.'},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        return Response({'message': 'Письмо отправлено повторно.'})
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            user = None
+
+        if user and not user.is_active:
+            token = create_verification_token(user)
+            try:
+                send_verification_email(user, token)
+            except Exception:
+                return Response(
+                    {'detail': 'Не удалось отправить письмо. Попробуйте позже.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+
+        return Response({'message': RESEND_SUCCESS_MESSAGE})
 
 
 class MeView(APIView):

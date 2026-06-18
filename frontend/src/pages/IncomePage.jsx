@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { analytics } from '../api'
 import { Card, PageHeader, StatCard, Button, formatMoney, PageLoadPlaceholder } from '../components/ui'
-import { getLeadSourceColor, getServiceColor } from '../utils/leadSourceColors'
+import { getLeadSourceColor } from '../utils/leadSourceColors'
 import { usePageCache } from '../hooks/usePageCache'
 
 const selectStyle = {
@@ -120,6 +120,13 @@ function periodLabel(period) {
   if (period === 'year') return 'год'
   if (period === 'quarter') return 'квартал'
   return 'месяц'
+}
+
+function serviceBarColor(index, total) {
+  if (total <= 1) return 'var(--accent-dark)'
+  const t = index / (total - 1)
+  const lightMix = Math.round(15 + t * 55)
+  return `color-mix(in srgb, var(--accent-dark) ${100 - lightMix}%, var(--accent-light))`
 }
 
 function previousPeriodLabel(period, selectedMonth) {
@@ -345,9 +352,8 @@ export default function IncomePage() {
           ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: '0.875rem' }}>Нет данных</div>
           : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {byService.slice(0, 6).map((s, index) => {
+              {byService.slice(0, 6).map((s, index, items) => {
                 const pct = (s.total / (byService[0]?.total || 1)) * 100
-                const color = getServiceColor(s.service, s.service_id, index)
                 return (
                   <div key={s.service_id ?? s.service}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
@@ -355,7 +361,7 @@ export default function IncomePage() {
                       <span style={{ fontWeight: 500 }}>{formatMoney(s.total)}</span>
                     </div>
                     <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3 }} />
+                      <div style={{ height: '100%', width: `${pct}%`, background: serviceBarColor(index, items.length), borderRadius: 3 }} />
                     </div>
                   </div>
                 )

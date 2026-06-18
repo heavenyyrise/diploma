@@ -1,5 +1,5 @@
-from django.db.models import Count, F, Sum, Window
-from django.db.models.functions import RowNumber, TruncMonth
+from django.db.models import Count, F, Q, Sum
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -18,7 +18,6 @@ LABEL_NO_SOURCE = 'Без источника'
 
 
 class IncomeByLeadSourceView(APIView):
-    """First-touch lifetime income by client acquisition source."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -40,33 +39,34 @@ class IncomeByLeadSourceView(APIView):
 
 
 class IncomeByClientTypeView(APIView):
-    """Period income split: first completed order vs repeat orders."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         start, end, _, _ = resolve_request_period_bounds(request)
 
-        ranked = Order.objects.filter(
+        period_orders = Order.objects.filter(
             user=request.user,
             status='completed',
             client__isnull=False,
             completed_at__isnull=False,
-        ).annotate(
-            order_rank=Window(
-                expression=RowNumber(),
-                partition_by=[F('client_id')],
-                order_by=F('completed_at').asc(),
-            ),
-        ).filter(
             completed_at__gte=start,
             completed_at__lte=end,
-        ).values('price', 'order_rank')
+        ).annotate(
+            prior_completed=Count(
+                'client__orders',
+                filter=Q(
+                    client__orders__user=request.user,
+                    client__orders__status='completed',
+                    client__orders__completed_at__lt=F('completed_at'),
+                ),
+            ),
+        ).values('price', 'prior_completed')
 
         totals = {LABEL_NEW: 0.0, LABEL_REPEAT: 0.0}
         counts = {LABEL_NEW: 0, LABEL_REPEAT: 0}
-        for row in ranked:
+        for row in period_orders:
             price = float(row['price'] or 0)
-            if row['order_rank'] == 1:
+            if row['prior_completed'] == 0:
                 totals[LABEL_NEW] += price
                 counts[LABEL_NEW] += 1
             else:
@@ -103,7 +103,6 @@ class IncomeByClientTypeView(APIView):
 
 
 class NewClientsByLeadSourceView(APIView):
-    """New clients acquired in period, grouped by lead source."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

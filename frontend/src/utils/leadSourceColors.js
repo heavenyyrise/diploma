@@ -49,15 +49,3 @@ function colorByName(label, map = {}) {
 export function getLeadSourceColor(label) {
   return colorByName(label, LEAD_SOURCE_COLORS)
 }
-
-export function getServiceColor(name, serviceId, listIndex) {
-  const key = (name || '').trim().toLowerCase()
-  if (key === 'без услуги') return PALETTE.neutral
-  if (listIndex != null && listIndex >= 0) {
-    return FALLBACK_PALETTE[listIndex % FALLBACK_PALETTE.length]
-  }
-  if (serviceId != null) {
-    return FALLBACK_PALETTE[(serviceId - 1) % FALLBACK_PALETTE.length]
-  }
-  return colorByName(name, { 'без услуги': PALETTE.neutral })
-}

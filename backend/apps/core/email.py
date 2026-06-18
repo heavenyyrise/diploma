@@ -4,7 +4,6 @@ from django.template.loader import render_to_string
 
 
 def send_email(to, subject, template_name, context=None, reply_to=None):
-    """Send HTML email via Google SMTP. From = DEFAULT_FROM_EMAIL (with display name)."""
     context = context or {}
     html_body = render_to_string(f'emails/{template_name}.html', context)
     try:
@@ -28,7 +27,6 @@ def send_email(to, subject, template_name, context=None, reply_to=None):
 
 
 def send_raw_email(to, subject, body, reply_to=None, attachments=None):
-    """Send plain-text email. From = DEFAULT_FROM_EMAIL."""
     msg = EmailMultiAlternatives(
         subject=subject,
         body=body,

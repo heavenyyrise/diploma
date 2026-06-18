@@ -55,6 +55,16 @@ class ClientSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        user = self.context.get('user')
+        if user is None:
+            request = self.context.get('request')
+            if request and request.user.is_authenticated:
+                user = request.user
+        if user and user.is_authenticated:
+            self.fields['lead_source'].queryset = LeadSource.objects.filter(user=user)
+
     def get_total_income(self, obj):
         if hasattr(obj, 'income_total'):
             return float(obj.income_total)
