@@ -48,6 +48,7 @@
 7. Проверка: `https://your-backend.up.railway.app/admin/`
 
 > Ошибка `Railpack could not determine how to build` → Root Directory = `backend`, Redeploy.
+> Не держите `railway.toml` и `railway.json` в одной папке — Railway берёт `.toml` и может сломать сборку. Используйте только `railway.json`.
 
 ---
 
