@@ -214,6 +214,12 @@ npm run build
 npm run preview
 ```
 
+## Деплой (production)
+
+Схема: **Vercel** (frontend) + **Railway** (backend + PostgreSQL).
+
+Пошаговая инструкция: [DEPLOY.md](DEPLOY.md).
+
 ## Примечания
 
 - Для работы email-отправки через Gmail нужен App Password, обычный пароль от аккаунта не подойдет.
