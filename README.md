@@ -216,7 +216,7 @@ npm run preview
 
 ## Деплой (production)
 
-Схема: **Vercel** (frontend) + **Railway** (backend + PostgreSQL).
+Схема: **только Railway** — backend + PostgreSQL + frontend в одном проекте.
 
 Пошаговая инструкция: [DEPLOY.md](DEPLOY.md).
 

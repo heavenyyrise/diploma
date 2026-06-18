@@ -1,80 +1,107 @@
-# Деплой: Vercel + Railway
+# Деплой: только Railway
 
-## Схема
+Один проект Railway, три сервиса:
 
 ```text
-Браузер → Vercel (React)
-              ├─ /api/*   → Railway (Django)
-              └─ /*       → index.html
+Проект Railway
+├── backend   (Django, root: backend/)
+├── postgres  (Add Database)
+└── frontend  (React static, root: frontend/)
 
-Railway: Django + PostgreSQL + Volume /app/media
+Браузер → frontend.up.railway.app
+              ↓ VITE_API_URL
+         backend.up.railway.app/api
+              ↓
+         PostgreSQL + Volume /app/media
 ```
 
-## 1. Railway (backend)
+## 0. Подготовка
 
-1. [railway.app](https://railway.app) → New Project → Deploy from GitHub.
-2. **Root Directory**: `backend`
+Закоммитьте и запушьте код в GitHub.
+
+---
+
+## 1. Backend (Django)
+
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
+2. Сервис backend → **Settings → Source → Root Directory**: `backend`
 3. **+ New → Database → PostgreSQL**
-4. Backend → **Variables** — добавить:
+4. **Variables** (backend):
 
 | Переменная | Значение |
 |------------|----------|
-| `SECRET_KEY` | Случайная длинная строка |
+| `SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
 | `DEBUG` | `False` |
-| `ALLOWED_HOSTS` | `your-app.up.railway.app` |
-| `DB_HOST` | `${{Postgres.PGHOST}}` (Reference) |
-| `DB_PORT` | `${{Postgres.PGPORT}}` |
-| `DB_NAME` | `${{Postgres.PGDATABASE}}` |
-| `DB_USER` | `${{Postgres.PGUSER}}` |
-| `DB_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
-| `FRONTEND_URL` | URL Vercel (после шага 2) |
+| `ALLOWED_HOSTS` | `your-backend.up.railway.app` (после Generate Domain) |
+| `DB_HOST` | Reference → Postgres → `PGHOST` |
+| `DB_PORT` | Reference → `PGPORT` |
+| `DB_NAME` | Reference → `PGDATABASE` |
+| `DB_USER` | Reference → `PGUSER` |
+| `DB_PASSWORD` | Reference → `PGPASSWORD` |
+| `FRONTEND_URL` | URL frontend (шаг 2, потом обновить) |
+| `CORS_ALLOWED_ORIGINS` | `https://your-frontend.up.railway.app` |
 | `EMAIL_HOST_USER` | Gmail |
 | `EMAIL_HOST_PASSWORD` | App Password |
 
-5. **Volumes** → mount `/app/media`
-6. **Networking** → Generate Domain
-7. Проверка: `https://your-app.up.railway.app/admin/` (502 до первого успешного деплоя — норм)
+5. **Volumes** → mount path `/app/media`
+6. **Networking → Generate Domain** → скопируйте URL backend
+7. Проверка: `https://your-backend.up.railway.app/admin/`
 
-## 2. Vercel (frontend)
+> Ошибка `Railpack could not determine how to build` → Root Directory = `backend`, Redeploy.
 
-1. [vercel.com](https://vercel.com) → Import Git Repository.
-2. **Root Directory**: `frontend`
-3. **Build Command**: `npm run build`
-4. **Output Directory**: `dist`
-5. **Environment Variable**:
+---
 
-```text
-BACKEND_URL=https://your-app.up.railway.app
-```
+## 2. Frontend (React)
 
-6. Deploy → скопировать URL (`https://your-app.vercel.app`)
+1. В том же проекте: **+ New → GitHub Repo** → тот же репозиторий
+2. **Settings → Source → Root Directory**: `frontend`
+3. **Variables** (важно: нужны на этапе **build**):
 
-## 3. Связать сервисы
+| Переменная | Значение |
+|------------|----------|
+| `VITE_API_URL` | `https://your-backend.up.railway.app/api` |
 
-В Railway обновить `FRONTEND_URL=https://your-app.vercel.app` → Redeploy.
+4. **Networking → Generate Domain** → URL frontend
+5. Проверка: открывается страница `/login`
 
-## 4. Перенос локальных данных (опционально)
+После получения URL frontend — обновите на **backend**:
+- `FRONTEND_URL=https://your-frontend.up.railway.app`
+- `CORS_ALLOWED_ORIGINS=https://your-frontend.up.railway.app`
+
+→ Redeploy backend.
+
+---
+
+## 3. Перенос локальных данных (опционально)
 
 ```powershell
 pg_dump -U postgres -d freelancer_arm -F c -f backup.dump
 pg_restore -h <PGHOST> -U <PGUSER> -d <PGDATABASE> --clean --if-exists backup.dump
 ```
 
-Скопировать `backend/media/` на Railway Volume. Вход — тем же email/паролем, не регистрация.
+Скопируйте `backend/media/` на Volume. **Вход**, не регистрация.
 
-## 5. Проверка
+---
 
-- [ ] Логин / регистрация + email
-- [ ] Заказы + загрузка файла
-- [ ] Публичная форма `/form`
-- [ ] Отправка письма клиенту
+## 4. Проверка
 
-## Обновления
+- [ ] Логин на frontend URL
+- [ ] Заказ + файл
+- [ ] `/form?user_id=ВАШ_ID`
+- [ ] Email (регистрация / отправка клиенту)
+
+---
+
+## 5. Обновления
 
 ```powershell
-git add .
-git commit -m "описание"
 git push
 ```
 
-Railway и Vercel пересоберут автоматически.
+Оба git-сервиса (backend + frontend) пересоберутся автоматически.
+
+---
+
+## Локальная разработка
+
+Без `VITE_API_URL` — API через Vite proxy (`/api` → localhost:8000). См. README.

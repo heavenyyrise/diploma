@@ -1,6 +1,7 @@
 import axios from 'axios'
+import { API_BASE } from './baseUrl'
 
-const api = axios.create({ baseURL: '/api' })
+const api = axios.create({ baseURL: API_BASE })
 
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('access')
@@ -13,7 +14,7 @@ api.interceptors.response.use(r => r, async err => {
     const refresh = localStorage.getItem('refresh')
     if (refresh) {
       try {
-        const { data } = await axios.post('/api/auth/token/refresh/', { refresh })
+        const { data } = await axios.post(`${API_BASE}/auth/token/refresh/`, { refresh })
         localStorage.setItem('access', data.access)
         err.config.headers.Authorization = `Bearer ${data.access}`
         return api(err.config)
@@ -29,6 +30,7 @@ api.interceptors.response.use(r => r, async err => {
 })
 
 export default api
+export { API_BASE }
 
 export const auth = {
   login: d => api.post('/auth/token/', d),
@@ -100,12 +102,12 @@ export const leads = {
   accept: id => api.post(`/leads/${id}/accept/`),
   reject: (id, d) => api.post(`/leads/${id}/reject/`, d),
   clearRejected: () => api.post('/leads/clear-rejected/'),
-  createPublic: (userId, data) => axios.post('/api/leads/public/', { ...data, user_id: userId }),
+  createPublic: (userId, data) => axios.post(`${API_BASE}/leads/public/`, { ...data, user_id: userId }),
 }
 export const formSettings = {
   get: () => api.get('/form-settings/'),
   update: d => api.patch('/form-settings/', d),
-  getPublic: userId => axios.get('/api/form-settings/public/', { params: { user_id: userId } }),
+  getPublic: userId => axios.get(`${API_BASE}/form-settings/public/`, { params: { user_id: userId } }),
 }
 export const messaging = {
   templates: {

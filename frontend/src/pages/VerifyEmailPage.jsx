@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE } from '../api/baseUrl'
 import { Button } from '../components/ui'
 import AuthBrandPanel, { authPageLayout } from '../components/auth/AuthBrandPanel'
 import { getUserFacingError } from '../utils/userFacingError'
@@ -18,7 +19,7 @@ export default function VerifyEmailPage() {
       setMessage('Ссылка подтверждения недействительна.')
       return
     }
-    axios.get('/api/auth/verify-email/', { params: { token } })
+    axios.get(`${API_BASE}/auth/verify-email/`, { params: { token } })
       .then(r => {
         setStatus('success')
         setMessage(r.data.message || 'Email успешно подтверждён.')

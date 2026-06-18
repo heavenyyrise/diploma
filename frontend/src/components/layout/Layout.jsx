@@ -3,8 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useLeads } from '../../context/LeadsContext'
 import LeadToast from '../ui/LeadToast'
-const APP_TITLE = 'Web Application'
-const APP_SUBTITLE = 'for Self-Employed'
+const APP_TITLE = 'FreelanceCRM'
 
 const NAV = [
   { to: '/',             label: 'Дашборд',      icon: <GridIcon />,   exact: true },
@@ -43,7 +42,7 @@ export default function Layout() {
           {sidebarOpen ? <CloseIcon /> : <MenuIcon />}
         </button>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 'var(--font-display-weight)', color: '#fff', lineHeight: 1.3 }}>
-          {APP_TITLE} <span style={{ color: 'var(--accent)', fontSize: '0.72rem', letterSpacing: '0.04em' }}>{APP_SUBTITLE}</span>
+          {APP_TITLE}
         </div>
       </header>
 
@@ -56,7 +55,6 @@ export default function Layout() {
       <aside className={`app-sidebar${sidebarOpen ? ' is-open' : ''}`}>
         <div style={{ padding: '28px 20px 24px', borderBottom: '1px solid var(--border-sidebar)' }}>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 'var(--font-display-weight)', color: '#fff', lineHeight: 1.35 }}>{APP_TITLE}</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--accent)', marginTop: 4, letterSpacing: '0.04em', fontWeight: 500 }}>{APP_SUBTITLE}</div>
         </div>
 
         <nav style={{ flex: 1, padding: '16px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
