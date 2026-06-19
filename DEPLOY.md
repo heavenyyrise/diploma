@@ -40,8 +40,8 @@
 | `DB_PASSWORD` | Reference → `PGPASSWORD` |
 | `FRONTEND_URL` | URL frontend (шаг 2, потом обновить) |
 | `CORS_ALLOWED_ORIGINS` | `https://your-frontend.up.railway.app` |
-| `EMAIL_HOST_USER` | Gmail |
-| `EMAIL_HOST_PASSWORD` | App Password |
+| `RESEND_API_KEY` | API key с [resend.com](https://resend.com) (см. раздел «Email» ниже) |
+| `DEFAULT_FROM_EMAIL` | `Freelancer CRM <onboarding@resend.dev>` или `noreply@ваш-домен` после верификации |
 
 5. **Volumes** → mount path `/app/media`
 6. **Networking → Generate Domain** → скопируйте URL backend
@@ -81,6 +81,29 @@ pg_restore -h <PGHOST> -U <PGUSER> -d <PGDATABASE> --clean --if-exists backup.du
 ```
 
 Скопируйте `backend/media/` на Volume. **Вход**, не регистрация.
+
+---
+
+## Email (Railway)
+
+На **Hobby/Free** Railway **блокирует SMTP** (Gmail `smtp.gmail.com:587`). Локально Gmail работает, на сервере — нет.
+
+**Решение:** [Resend](https://resend.com) (HTTPS API, бесплатно ~3000 пис/мес):
+
+1. Регистрация → **API Keys** → создать ключ
+2. На backend в Variables:
+   - `RESEND_API_KEY=re_...`
+   - `DEFAULT_FROM_EMAIL=Freelancer CRM <onboarding@resend.dev>`
+3. Redeploy backend
+4. Проверка в Railway Shell:
+   ```bash
+   python manage.py check_email_connection
+   python manage.py send_test_email ваш@email.com
+   ```
+
+**Важно:** `onboarding@resend.dev` без своего домена шлёт письма **только на email аккаунта Resend**. Чтобы регистрация работала для любых адресов — в Resend добавьте и верифицируйте домен (DNS), затем `DEFAULT_FROM_EMAIL=noreply@ваш-домен`.
+
+Локально (`backend/.env`) Resend не нужен — остаётся Gmail SMTP (`EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD`).
 
 ---
 
