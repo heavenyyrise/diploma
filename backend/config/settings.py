@@ -24,6 +24,21 @@ ALLOWED_HOSTS = [
     h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()
 ]
 
+
+def _normalize_origin(value: str) -> str:
+    value = value.strip().rstrip('/')
+    if not value:
+        return value
+    if value.startswith(('http://', 'https://')):
+        return value
+    return f'https://{value}'
+
+
+def _origins_from_env(env_name: str, defaults: list[str]) -> list[str]:
+    raw = os.getenv(env_name, '')
+    items = [p.strip() for p in raw.split(',') if p.strip()] if raw else defaults
+    return [_normalize_origin(item) for item in items if item.strip()]
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -115,27 +130,17 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
 
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+FRONTEND_URL = _normalize_origin(os.getenv('FRONTEND_URL', 'http://localhost:5173'))
 
 _default_cors = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     FRONTEND_URL,
 ]
-_cors_from_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in (_cors_from_env.split(',') if _cors_from_env else _default_cors)
-    if origin.strip()
-]
+CORS_ALLOWED_ORIGINS = _origins_from_env('CORS_ALLOWED_ORIGINS', _default_cors)
 CORS_ALLOW_CREDENTIALS = True
 
-_csrf_from_env = os.getenv('CSRF_TRUSTED_ORIGINS', '')
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in (_csrf_from_env.split(',') if _csrf_from_env else CORS_ALLOWED_ORIGINS)
-    if origin.strip()
-]
+CSRF_TRUSTED_ORIGINS = _origins_from_env('CSRF_TRUSTED_ORIGINS', CORS_ALLOWED_ORIGINS)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
